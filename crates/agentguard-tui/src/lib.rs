@@ -411,9 +411,18 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => {
                 if self.selected_event_idx.is_some() { self.selected_event_idx = None; }
                 else if self.search_active { self.search_active = false; self.search_query.clear(); }
-                else { self.running = false; }
+                else {
+                    // Send shutdown to daemon before exiting
+                    let client = self.client.clone();
+                    tokio::spawn(async move { let _ = client.shutdown().await; });
+                    self.running = false;
+                }
             }
-            KeyCode::Char('Q') => self.running = false,
+            KeyCode::Char('Q') => {
+                let client = self.client.clone();
+                tokio::spawn(async move { let _ = client.shutdown().await; });
+                self.running = false;
+            }
             KeyCode::Char('/') => { self.search_active = true; self.search_query.clear(); }
             KeyCode::Char('t') => { self.toasts.pop(); }
             KeyCode::Tab | KeyCode::Right => { self.active_tab = (self.active_tab + 1) % self.tabs.len(); }

@@ -8,7 +8,7 @@ mod cmd;
 #[derive(Parser)]
 #[command(
     name = "agentguard",
-    about = "Proteccion de ficheros contra agentes de IA",
+    about = "OS-level file safety for AI coding agents",
     version = env!("CARGO_PKG_VERSION"),
 )]
 pub struct Cli {
@@ -18,48 +18,50 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Inicializa AgentGuard: crea agentguard.toml, arranca daemon, registra proyecto
+    /// Initialize AgentGuard: creates agentguard.toml, starts daemon, registers project
     Init {
         #[arg(long)]
         no_create: bool,
-        /// Permite continuar aunque la auditoria detecte deny sin bloqueo efectivo (inseguro)
+        /// Continue even if deny enforcement audit is unhealthy (insecure)
         #[arg(long, default_value_t = false)]
         allow_unhealthy: bool,
     },
-    /// Muestra el estado del daemon y proyectos vigilados
+    /// Show daemon status and watched projects
     Status,
-    /// Comandos de proyecto
+    /// Stop the daemon (shortcut for `agentguard daemon stop`)
+    Stop,
+    /// Project commands
     Project {
         #[command(subcommand)]
         cmd: ProjectCommands,
     },
-    /// Comandos del daemon
+    /// Daemon commands
     Daemon {
         #[command(subcommand)]
         cmd: DaemonCommands,
     },
-    /// Reglas globales del sistema (aplican a todos los proyectos)
+    /// Global rules (apply to all projects)
     Global {
         #[command(subcommand)]
         cmd: GlobalCommands,
     },
-    /// Consulta el historial de auditoria
+    /// View audit log history
     Audit {
         #[command(subcommand)]
         cmd: AuditCommands,
     },
-    /// Reglas por agente (cursor.exe, claude.exe, etc.)
+    /// Per-agent rules (cursor.exe, claude.exe, etc.)
     Agent {
         #[command(subcommand)]
         cmd: AgentCommands,
     },
-    /// Abre el dashboard TUI (requiere daemon corriendo)
+    /// Open the TUI dashboard (daemon must be running)
     Ui,
-    /// Arranca daemon + TUI juntos
+    /// Start daemon + TUI together
     Run,
-    /// Busca e instala la ultima version desde GitHub
+    /// Check for and install updates from GitHub
     Update {
-        /// Solo verificar, no instalar
+        /// Only check, don't install
         #[arg(long)]
         check: bool,
     },
@@ -67,41 +69,41 @@ pub enum Commands {
 
 #[derive(Subcommand)]
 pub enum ProjectCommands {
-    /// Valida el agentguard.toml del directorio actual
+    /// Validate the agentguard.toml in the current directory
     Validate {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
     },
-    /// Comprueba que decision tomaria para un fichero (dry-run)
+    /// Dry-run: what decision would apply to a file?
     Check {
         #[arg(long, short)]
         file: PathBuf,
         #[arg(long, short, value_parser = ["read", "write", "delete"])]
         op: String,
     },
-    /// Elimina el proyecto de la vigilancia del daemon
+    /// Remove project from daemon watch
     Unregister {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
     },
-    /// Muestra la politica actual del proyecto
+    /// Show the current project policy
     Show,
-    /// Desactiva temporalmente las protecciones del proyecto
+    /// Temporarily disable project protections
     Off {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
     },
-    /// Reactiva las protecciones del proyecto
+    /// Re-enable project protections
     On {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
     },
-    /// Recarga agentguard.toml del disco (manual hot-reload)
+    /// Reload agentguard.toml from disk (manual hot-reload)
     Reload {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
     },
-    /// Verifica cobertura efectiva de protecciones en rutas [deny]
+    /// Audit effective protection coverage for [deny] paths
     Verify {
         #[arg(long, short, default_value = ".")]
         path: PathBuf,
@@ -120,23 +122,23 @@ pub enum DaemonCommands {
 
 #[derive(Subcommand)]
 pub enum GlobalCommands {
-    /// Añade una regla global
+    /// Add a global rule
     Add {
         /// Bucket: deny, ask, full, delete, write, read
         #[arg(value_parser = ["deny", "ask", "full", "delete", "write", "read"])]
         bucket: String,
-        /// Patron glob (ej: C:\Users\*\.ssh\**)
+        /// Glob pattern (e.g. C:\Users\*\.ssh\**)
         pattern: String,
     },
-    /// Elimina una regla global por ID
+    /// Remove a global rule by ID
     Remove { id: i64 },
-    /// Lista todas las reglas globales
+    /// List all global rules
     List,
 }
 
 #[derive(Subcommand)]
 pub enum AuditCommands {
-    /// Muestra los ultimos eventos de auditoria
+    /// Show recent audit events
     List {
         #[arg(long, short, default_value = "25")]
         limit: usize,
@@ -145,21 +147,21 @@ pub enum AuditCommands {
 
 #[derive(Subcommand)]
 pub enum AgentCommands {
-    /// Añade una regla para un agente especifico
+    /// Add a rule for a specific agent
     Add {
-        /// Imagen del agente (ej: cursor.exe, claude.exe)
+        /// Agent image name (e.g. cursor.exe, claude.exe)
         agent_image: String,
         /// Bucket: deny, ask, full, delete, write, read
         #[arg(value_parser = ["deny", "ask", "full", "delete", "write", "read"])]
         bucket: String,
-        /// Patron glob (ej: *.env, src/**)
+        /// Glob pattern (e.g. *.env, src/**)
         pattern: String,
     },
-    /// Elimina una regla de agente por ID
+    /// Remove an agent rule by ID
     Remove { id: i64 },
-    /// Lista reglas de agente (todas o filtradas por imagen)
+    /// List agent rules (all or filtered by image)
     List {
-        /// Filtrar por imagen de agente (opcional)
+        /// Filter by agent image (optional)
         image: Option<String>,
     },
 }
@@ -173,6 +175,7 @@ async fn main() {
             allow_unhealthy,
         } => cmd::init::run(no_create, allow_unhealthy).await,
         Commands::Status => cmd::status::run().await,
+        Commands::Stop => cmd::daemon::stop().await,
         Commands::Project { cmd } => match cmd {
             ProjectCommands::Validate { path } => cmd::project::validate(path).await,
             ProjectCommands::Check { file, op } => cmd::project::check(file, op).await,
