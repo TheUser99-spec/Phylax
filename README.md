@@ -60,6 +60,19 @@ Pressing `Q` in the TUI also stops the daemon automatically.
 
 ---
 
+## 🔒 100% local — no accounts, no cloud, no telemetry
+
+AgentGuard runs entirely on your machine. There is no login, no authentication, no cloud backend, no analytics, and no telemetry. Everything stays local:
+
+- **No account required** — just download and run
+- **No internet needed** — the daemon and TUI work fully offline
+- **Your data never leaves your PC** — audit logs stored in local SQLite (`%APPDATA%\AgentGuard\agentguard.db`)
+- **No API keys, no registration, no phone number** — AgentGuard doesn't even know who you are
+
+Your files, your rules, your machine. Maximum privacy by design.
+
+---
+
 ## ⚔️ Threat Model
 
 | Threat | Mitigation |
