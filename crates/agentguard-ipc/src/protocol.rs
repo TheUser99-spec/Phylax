@@ -60,6 +60,25 @@ pub enum IpcRequest {
     DisableProtection {
         path: PathBuf,
     },
+    SubscribeEvents,
+    GetStats,
+    GetPolicy {
+        path: PathBuf,
+    },
+    AddAgentRule {
+        agent_image: String,
+        bucket: String,
+        pattern: String,
+    },
+    RemoveAgentRule {
+        id: i64,
+    },
+    ListAgentRules {
+        agent_image: Option<String>,
+    },
+    VerifyProtection {
+        path: PathBuf,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +94,11 @@ pub enum IpcResponse {
     ProjectValidation(ValidationResult),
     FileCheck(FileCheckResult),
     GlobalRulesList(GlobalRulesListData),
+    Event(StreamingEvent),
+    Stats(DashboardStats),
+    Policy(PolicyData),
+    AgentRulesList(AgentRulesListData),
+    ProtectionReport(ProtectionReportData),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +141,7 @@ pub struct ProjectInfo {
     pub deny_count: usize,
     pub ask_count: usize,
     pub write_count: usize,
+    pub delete_count: usize,
     pub read_count: usize,
 }
 
@@ -163,6 +188,106 @@ pub struct FileCheckResult {
     pub decision: PolicyDecision,
     pub source: String,
     pub reason: String,
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard stats
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardStats {
+    pub total_events: u64,
+    pub blocks: u64,
+    pub allows: u64,
+    pub asks: u64,
+    pub top_agents: Vec<AgentStat>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentStat {
+    pub agent_label: String,
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PolicyData {
+    pub project_name: String,
+    pub default_mode: String,
+    pub deny: Vec<String>,
+    pub ask: Vec<String>,
+    pub full: Vec<String>,
+    pub delete: Vec<String>,
+    pub write: Vec<String>,
+    pub read: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentRuleInfo {
+    pub id: i64,
+    pub agent_image: String,
+    pub bucket: String,
+    pub pattern: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentRulesListData {
+    pub rules: Vec<AgentRuleInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProtectionPathHealth {
+    pub path: PathBuf,
+    pub exists: bool,
+    pub content_deny: bool,
+    pub metadata_deny: bool,
+    pub effective_deny: bool,
+    pub healthy: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProtectionReportData {
+    pub schema_version: u32,
+    pub workspace: PathBuf,
+    pub total_deny_paths: usize,
+    pub healthy_paths: usize,
+    pub effective_deny_paths: usize,
+    pub unhealthy_paths: Vec<ProtectionPathHealth>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Streaming events (push from daemon to subscribed clients)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "event", rename_all = "snake_case")]
+pub enum StreamingEvent {
+    AuditEvent(AuditEventView),
+    AgentDetected(ActiveAgent),
+    AgentExited {
+        pid: u32,
+    },
+    StatusUpdate {
+        events_today: u64,
+        blocks_today: u64,
+        active_agents_count: usize,
+        projects_count: usize,
+    },
+    SystemMessage {
+        message: String,
+        #[serde(rename = "level")]
+        level: String,
+        #[serde(default)]
+        timestamp: i64,
+    },
+    AskPrompt {
+        request_id: u64,
+        agent_label: String,
+        file_path: String,
+        operation: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +373,7 @@ mod tests {
                 deny_count: 5,
                 ask_count: 2,
                 write_count: 10,
+                delete_count: 3,
                 read_count: 20,
             }],
             active_agents: vec![ActiveAgent {
@@ -341,6 +467,29 @@ mod tests {
             },
             IpcRequest::RemoveGlobalRule { id: 1 },
             IpcRequest::ListGlobalRules,
+            IpcRequest::EnableProtection {
+                path: PathBuf::from("/p"),
+            },
+            IpcRequest::DisableProtection {
+                path: PathBuf::from("/p"),
+            },
+            IpcRequest::SubscribeEvents,
+            IpcRequest::GetStats,
+            IpcRequest::GetPolicy {
+                path: PathBuf::from("/test"),
+            },
+            IpcRequest::AddAgentRule {
+                agent_image: "cursor.exe".into(),
+                bucket: "deny".into(),
+                pattern: "*.env".into(),
+            },
+            IpcRequest::RemoveAgentRule { id: 1 },
+            IpcRequest::ListAgentRules {
+                agent_image: Some("cursor.exe".into()),
+            },
+            IpcRequest::VerifyProtection {
+                path: PathBuf::from("/test"),
+            },
         ];
 
         for req in requests {
@@ -390,6 +539,75 @@ mod tests {
                     pattern: "*.env".into(),
                     created_at: "2026-01-01 00:00".into(),
                 }],
+            }),
+            IpcResponse::Event(StreamingEvent::AuditEvent(AuditEventView {
+                id: 0,
+                agent_pid: 1234,
+                agent_label: "Definite".into(),
+                file_path: "/test/.env".into(),
+                operation: "read".into(),
+                decision: "deny".into(),
+                source: "project".into(),
+                timestamp: 1700000000,
+            })),
+            IpcResponse::Event(StreamingEvent::AgentDetected(ActiveAgent {
+                pid: 1234,
+                image_name: "cursor.exe".into(),
+                label: AgentLabel::Definite,
+                workspace: Some(PathBuf::from("/test")),
+                started_at: 1700000000,
+            })),
+            IpcResponse::Event(StreamingEvent::AgentExited { pid: 1234 }),
+            IpcResponse::Event(StreamingEvent::StatusUpdate {
+                events_today: 42,
+                blocks_today: 7,
+                active_agents_count: 2,
+                projects_count: 3,
+            }),
+            IpcResponse::Stats(DashboardStats {
+                total_events: 100,
+                blocks: 10,
+                allows: 80,
+                asks: 10,
+                top_agents: vec![AgentStat {
+                    agent_label: "DEFINITE".into(),
+                    count: 50,
+                }],
+                timestamp: 1700000000,
+            }),
+            IpcResponse::Policy(PolicyData {
+                project_name: "my-app".into(),
+                default_mode: "conservative".into(),
+                deny: vec![".env".into(), "*.key".into()],
+                ask: vec!["Cargo.lock".into()],
+                full: vec![],
+                delete: vec!["target/**".into()],
+                write: vec!["src/**".into()],
+                read: vec!["docs/**".into()],
+            }),
+            IpcResponse::AgentRulesList(AgentRulesListData {
+                rules: vec![AgentRuleInfo {
+                    id: 1,
+                    agent_image: "cursor.exe".into(),
+                    bucket: "deny".into(),
+                    pattern: "*.env".into(),
+                }],
+            }),
+            IpcResponse::ProtectionReport(ProtectionReportData {
+                schema_version: 1,
+                workspace: PathBuf::from("/test"),
+                warnings: vec![],
+                total_deny_paths: 2,
+                healthy_paths: 1,
+                    unhealthy_paths: vec![ProtectionPathHealth {
+                        path: PathBuf::from("/test/.env"),
+                        exists: true,
+                        content_deny: false,
+                        metadata_deny: false,
+                        effective_deny: false,
+                        healthy: false,
+                    }],
+                effective_deny_paths: 1,
             }),
         ];
 

@@ -21,7 +21,10 @@ dependencies = [
  "agentguard-manifest",
  "chrono",
  "clap",
+ "serde_json",
+ "tempfile",
  "tokio",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -48,8 +51,10 @@ dependencies = [
  "agentguard-store",
  "chrono",
  "globset",
+ "tempfile",
  "tokio",
  "tracing",
+ "walkdir",
  "windows-sys 0.59.0",
 ]
 
@@ -85,6 +90,15 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+ "walkdir",
+]
+
+[[package]]
+name = "agentguard-mascot"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
 ]
 
 [[package]]

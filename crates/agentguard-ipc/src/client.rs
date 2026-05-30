@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use crate::protocol::{self, IpcRequest, IpcResponse};
 
+#[derive(Clone)]
 pub struct IpcClient {
     pipe: Option<String>,
 }
@@ -156,6 +157,111 @@ impl IpcClient {
             other => Err(GuardError::IpcError(format!(
                 "unexpected response: {other:?}"
             ))),
+        }
+    }
+
+    pub async fn verify_protection(
+        &self,
+        path: PathBuf,
+    ) -> GuardResult<crate::protocol::ProtectionReportData> {
+        match self.send(IpcRequest::VerifyProtection { path }).await? {
+            IpcResponse::ProtectionReport(r) => Ok(r),
+            IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
+            other => Err(GuardError::IpcError(format!(
+                "unexpected response: {other:?}"
+            ))),
+        }
+    }
+
+    pub async fn subscribe_events(&self) -> GuardResult<tokio::sync::mpsc::Receiver<IpcResponse>> {
+        tokio::time::timeout(Duration::from_secs(6), self.subscribe_inner())
+            .await
+            .map_err(|_| GuardError::IpcError("timeout subscribing to events (6s)".into()))?
+    }
+
+    async fn subscribe_inner(&self) -> GuardResult<tokio::sync::mpsc::Receiver<IpcResponse>> {
+        let pipe_name = self.pipe_name();
+
+        #[cfg(windows)]
+        {
+            use tokio::net::windows::named_pipe::ClientOptions;
+            let started = tokio::time::Instant::now();
+            let mut pipe = loop {
+                match ClientOptions::new().open(&pipe_name) {
+                    Ok(pipe) => break pipe,
+                    Err(e) if started.elapsed() >= Duration::from_secs(5) => {
+                        return Err(GuardError::IpcError(format!(
+                            "failed to open daemon pipe {pipe_name}: {e}"
+                        )));
+                    }
+                    Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
+                }
+            };
+
+            protocol::send(&mut pipe, &IpcRequest::SubscribeEvents).await?;
+            match protocol::recv::<IpcResponse>(&mut pipe).await? {
+                IpcResponse::Ok => {}
+                IpcResponse::Error { message } => {
+                    return Err(GuardError::IpcError(message));
+                }
+                _ => {
+                    return Err(GuardError::IpcError(
+                        "unexpected response to SubscribeEvents".into(),
+                    ));
+                }
+            }
+
+            let (tx, rx) = tokio::sync::mpsc::channel::<IpcResponse>(128);
+            tokio::spawn(async move {
+                while let Ok(event) = protocol::recv::<IpcResponse>(&mut pipe).await {
+                    if tx.send(event).await.is_err() {
+                        break;
+                    }
+                }
+            });
+
+            Ok(rx)
+        }
+
+        #[cfg(not(windows))]
+        {
+            use tokio::net::UnixStream;
+            let started = tokio::time::Instant::now();
+            let mut stream = loop {
+                match UnixStream::connect(&pipe_name).await {
+                    Ok(stream) => break stream,
+                    Err(e) if started.elapsed() >= Duration::from_secs(5) => {
+                        return Err(GuardError::IpcError(format!(
+                            "failed to open daemon socket {pipe_name}: {e}"
+                        )));
+                    }
+                    Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
+                }
+            };
+
+            protocol::send(&mut stream, &IpcRequest::SubscribeEvents).await?;
+            match protocol::recv::<IpcResponse>(&mut stream).await? {
+                IpcResponse::Ok => {}
+                IpcResponse::Error { message } => {
+                    return Err(GuardError::IpcError(message));
+                }
+                _ => {
+                    return Err(GuardError::IpcError(
+                        "unexpected response to SubscribeEvents".into(),
+                    ));
+                }
+            }
+
+            let (tx, rx) = tokio::sync::mpsc::channel::<IpcResponse>(128);
+            tokio::spawn(async move {
+                while let Ok(event) = protocol::recv::<IpcResponse>(&mut stream).await {
+                    if tx.send(event).await.is_err() {
+                        break;
+                    }
+                }
+            });
+
+            Ok(rx)
         }
     }
 }

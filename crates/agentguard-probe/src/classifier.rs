@@ -5,6 +5,7 @@ use std::collections::HashSet;
 pub struct ClassifierConfig {
     pub known_agent_images: HashSet<String>,
     pub agent_env_vars: HashSet<String>,
+    pub system_processes: HashSet<String>,
 }
 
 impl Default for ClassifierConfig {
@@ -19,9 +20,25 @@ impl Default for ClassifierConfig {
             "goose.exe",
             "goose",
             "cline",
-            "gh.exe",
             "gemini.exe",
+            // node.exe is NOT matched by image name alone (requires S3 cmdline check).
+            // It's included here so that it can be used with add_known_image().
             "node.exe",
+            "windsurf.exe",
+            "codeium.exe",
+            "cody.exe",
+            "tabnine.exe",
+            "augment.exe",
+            "continue.exe",
+            "q.exe",
+            "q-developer.exe",
+            "replit.exe",
+            "trae.exe",
+            "devin.exe",
+            "opendevin.exe",
+            "phind.exe",
+            "pearai.exe",
+            "blackbox.exe",
         ]
         .iter()
         .map(|s| s.to_lowercase())
@@ -41,6 +58,52 @@ impl Default for ClassifierConfig {
             "AGENT_ENVIRONMENT",
             "AI_AGENT_MODE",
             "AGENT_SESSION_ID",
+            "WINDSURF_SESSION",
+            "CONTINUE_SESSION",
+            "Q_DEVELOPER",
+            "AMAZON_Q_SESSION",
+            "CODY_ENDPOINT",
+            "AUGMENT_TOKEN",
+            "TABNINE_TOKEN",
+            "SOURCECRAFT_SESSION",
+            "ZED_AI",
+            "REPLIT_SESSION",
+            "TRAE_SESSION",
+            "DEVIN_SESSION",
+            "PHIND_SESSION",
+            "BLACKBOX_SESSION",
+            "PEARAI_SESSION",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+        let system: HashSet<String> = [
+            "audiodg.exe",
+            "svchost.exe",
+            "lsass.exe",
+            "csrss.exe",
+            "winlogon.exe",
+            "services.exe",
+            "smss.exe",
+            "spoolsv.exe",
+            "wininit.exe",
+            "fontdrvhost.exe",
+            "dwm.exe",
+            "sihost.exe",
+            "taskhostw.exe",
+            "ctfmon.exe",
+            "msiexec.exe",
+            "wlms.exe",
+            "runtimebroker.exe",
+            "searchindexer.exe",
+            "securityhealthservice.exe",
+            "shellexperiencehost.exe",
+            "startmenuexperiencehost.exe",
+            "textinputhost.exe",
+            "systemsettings.exe",
+            "applicationframehost.exe",
+            "wudfhost.exe",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -49,6 +112,7 @@ impl Default for ClassifierConfig {
         Self {
             known_agent_images: images,
             agent_env_vars: env_vars,
+            system_processes: system,
         }
     }
 }
@@ -94,6 +158,9 @@ impl SubjectClassifier {
         }
 
         if info.session_id == 0 && !info.has_window {
+            if self.config.system_processes.contains(&image) {
+                return AgentLabel::Human;
+            }
             return AgentLabel::Probable;
         }
 
@@ -111,6 +178,21 @@ impl SubjectClassifier {
             "copilot",
             "opencode",
             "gemini-cli",
+            "windsurf",
+            "codeium",
+            "cody",
+            "tabnine",
+            "augment",
+            "continue",
+            "q-developer",
+            "sourcegraph",
+            "replit",
+            "trae",
+            "devin",
+            "opendevin",
+            "phind",
+            "pearai",
+            "blackbox",
         ];
         agent_keywords.iter().any(|kw| lower.contains(kw))
     }
@@ -181,6 +263,85 @@ mod tests {
     fn anthropic_api_key_is_definite() {
         let c = SubjectClassifier::with_defaults();
         let label = c.classify(&info("python.exe", &["ANTHROPIC_API_KEY"]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn windsurf_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("windsurf.exe", &[]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn codeium_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("codeium.exe", &[]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn tabnine_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("tabnine.exe", &[]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn augment_token_env_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("python.exe", &["AUGMENT_TOKEN"]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn windsurf_session_env_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("node.exe", &["WINDSURF_SESSION"]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn node_with_windsurf_cmdline_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let mut p = info("node.exe", &[]);
+        p.cmdline = r"node.exe /path/to/windsurf/dist/server.js".to_string();
+        let label = c.classify(&p);
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn opencode_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("opencode.exe", &[]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn replit_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("replit.exe", &[]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn amazon_q_env_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("q.exe", &["AMAZON_Q_SESSION"]));
+        assert_eq!(label, AgentLabel::Definite);
+    }
+
+    #[test]
+    fn gh_exe_is_not_agent() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("gh.exe", &[]));
+        assert_eq!(label, AgentLabel::Human);
+    }
+
+    #[test]
+    fn devin_exe_is_definite() {
+        let c = SubjectClassifier::with_defaults();
+        let label = c.classify(&info("devin.exe", &[]));
         assert_eq!(label, AgentLabel::Definite);
     }
 }

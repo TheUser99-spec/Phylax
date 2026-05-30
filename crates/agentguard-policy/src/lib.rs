@@ -133,4 +133,97 @@ files = ["src/**"]
         assert_eq!(decision, PolicyDecision::Deny);
         assert_eq!(source, PolicySource::Global);
     }
+
+    #[test]
+    fn global_ask_beats_project_write() {
+        let policy = CompiledPolicy::from_project(
+            &sample_manifest(),
+            std::path::PathBuf::from("/workspace"),
+        )
+        .unwrap()
+        .with_global_rules(&[(Bucket::Ask, "src/**".to_string())])
+        .unwrap();
+
+        let (decision, source) =
+            policy.evaluate_file_op(Path::new("/workspace/src/main.rs"), &FileOp::Write);
+        assert!(matches!(decision, PolicyDecision::Ask { .. }));
+        assert_eq!(source, PolicySource::Global);
+    }
+
+    #[test]
+    fn project_ask_returns_ask_decision() {
+        let policy = CompiledPolicy::from_project(
+            &sample_manifest(),
+            std::path::PathBuf::from("/workspace"),
+        )
+        .unwrap();
+
+        let (decision, source) =
+            policy.evaluate_file_op(Path::new("/workspace/Cargo.lock"), &FileOp::Write);
+        assert!(matches!(decision, PolicyDecision::Ask { .. }));
+        assert_eq!(source, PolicySource::Project);
+    }
+
+    #[test]
+    fn default_unrestricted_allows_delete() {
+        let toml = r#"
+[project]
+name = "test"
+default = "unrestricted"
+"#;
+        let manifest = ProjectManifest::parse_str(toml).unwrap();
+        let policy =
+            CompiledPolicy::from_project(&manifest, std::path::PathBuf::from("/workspace"))
+                .unwrap();
+
+        let (decision, source) =
+            policy.evaluate_file_op(Path::new("/workspace/anything.txt"), &FileOp::Delete);
+        assert_eq!(decision, PolicyDecision::Allow);
+        assert_eq!(source, PolicySource::Default);
+    }
+
+    #[test]
+    fn global_full_beats_project_deny() {
+        let toml = r#"
+[project]
+name = "test"
+default = "conservative"
+
+[deny]
+files = [".env"]
+"#;
+        let manifest = ProjectManifest::parse_str(toml).unwrap();
+        let policy =
+            CompiledPolicy::from_project(&manifest, std::path::PathBuf::from("/workspace"))
+                .unwrap()
+                .with_global_rules(&[(Bucket::Full, ".env".to_string())])
+                .unwrap();
+
+        let (decision, source) =
+            policy.evaluate_file_op(Path::new("/workspace/.env"), &FileOp::Read);
+        assert_eq!(decision, PolicyDecision::Allow);
+        assert_eq!(source, PolicySource::Global);
+    }
+
+    #[test]
+    fn no_rules_uses_project_default() {
+        let toml = r#"
+[project]
+name = "test"
+default = "conservative"
+"#;
+        let manifest = ProjectManifest::parse_str(toml).unwrap();
+        let policy =
+            CompiledPolicy::from_project(&manifest, std::path::PathBuf::from("/workspace"))
+                .unwrap();
+
+        let (read, _) = policy.evaluate_file_op(Path::new("/workspace/file.txt"), &FileOp::Read);
+        let (write, _) = policy.evaluate_file_op(Path::new("/workspace/file.txt"), &FileOp::Write);
+        let (delete, _) =
+            policy.evaluate_file_op(Path::new("/workspace/file.txt"), &FileOp::Delete);
+
+        assert_eq!(read, PolicyDecision::Allow);
+        assert!(matches!(write, PolicyDecision::Ask { .. }));
+        assert_eq!(delete, PolicyDecision::Deny);
+    }
 }

@@ -12,6 +12,7 @@ members = [
     "crates/agentguard-daemon",
     "crates/agentguard-cli",
     "crates/agentguard-tui",
+    "crates/agentguard-mascot",
 ]
 resolver = "2"
 
@@ -63,6 +64,10 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Diagnostics_Etw",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Registry",
 ] }
 ferrisetw = "0.1"
 ratatui = "0.29"
@@ -75,3 +80,4 @@ unsafe_code = "deny"
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+

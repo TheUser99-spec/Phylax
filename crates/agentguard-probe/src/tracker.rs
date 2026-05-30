@@ -91,6 +91,15 @@ impl AgentSessionTracker {
             .map(|p| p.label)
     }
 
+    pub fn get_image_name(&self, pid: u32) -> Option<String> {
+        self.inner
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .sessions
+            .get(&pid)
+            .map(|p| p.image_name.clone())
+    }
+
     pub fn active_sessions(&self) -> Vec<AgentSession> {
         self.inner
             .read()

@@ -2,7 +2,7 @@ use agentguard_core::GuardError;
 use rusqlite::Connection;
 use tracing::info;
 
-const MIGRATIONS: &[(u32, &str)] = &[(1, MIGRATION_001), (2, MIGRATION_002)];
+const MIGRATIONS: &[(u32, &str)] = &[(1, MIGRATION_001), (2, MIGRATION_002), (3, MIGRATION_003)];
 
 const MIGRATION_001: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -75,6 +75,18 @@ CREATE TABLE IF NOT EXISTS ask_decisions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ask_decisions_path ON ask_decisions (path);
+"#;
+
+const MIGRATION_003: &str = r#"
+CREATE TABLE IF NOT EXISTS agent_rules (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_image TEXT    NOT NULL,
+    bucket      TEXT    NOT NULL CHECK(bucket IN ('deny','ask','full','delete','write','read')),
+    pattern     TEXT    NOT NULL,
+    created     INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_rules_image ON agent_rules (agent_image);
 "#;
 
 /// Apply all pending migrations in order.

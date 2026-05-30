@@ -1,0 +1,14 @@
+[package]
+name = "agentguard-spawn"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "agentguard-spawn"
+path = "src/main.rs"
+
+[dependencies]
+windows-sys.workspace = true
+
+[lints]
+workspace = true

@@ -1,20 +1,23 @@
 # Architecture Decision Records
 #
-# Cada decisión no obvia → un ADR.
-# Formato mínimo:
+# Every non-obvious architectural decision should have an ADR.
 #
-#   # NNN — Título
-#   ## Contexto
-#   ## Decisión
-#   ## Alternativas consideradas
-#   ## Consecuencias
+# Minimum format:
 #
-# ADRs planeados:
+#   # NNN - Title
+#   ## Context
+#   ## Decision
+#   ## Alternatives considered
+#   ## Consequences
+#
+# Planned ADRs:
 #   - 001-etw-vs-polling.md
-#   - 002-deny-ace-vs-minifilter-phase1.md
+#   - 002-deny-aces-vs-minifilter-phase1.md
 #   - 003-sqlite-vs-config-file.md
-#   - 004-named-pipe-vs-other-ipc.md
-#   - 005-cpp-driver-vs-rust.md
+#   - 004-named-pipes-vs-other-ipc.md
+#   - 005-cpp-minifilter-vs-rust.md
 #   - 006-agentguard-toml-format.md
+#   - 007-phase2-minifilter-enforcement-plan.md
+#   - 008-simplified-everyone-deny-enforcement.md
 #
-# Solo añadir, nunca borrar.
+# Append-only policy: add new ADRs, do not delete historical ADRs.

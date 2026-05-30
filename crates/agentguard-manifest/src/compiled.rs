@@ -12,6 +12,11 @@ use crate::parser::ProjectManifest;
 pub struct CompiledManifest {
     pub workspace_root: PathBuf,
     pub default_mode: DefaultMode,
+    deny_count: usize,
+    ask_count: usize,
+    write_count: usize,
+    delete_count: usize,
+    read_count: usize,
     deny: GlobSet,
     ask: GlobSet,
     full: GlobSet,
@@ -27,6 +32,11 @@ impl CompiledManifest {
         Ok(Self {
             workspace_root,
             default_mode: manifest.project.default.clone(),
+            deny_count: manifest.deny.files.len(),
+            ask_count: manifest.ask.files.len(),
+            write_count: manifest.write.files.len(),
+            delete_count: manifest.delete.files.len(),
+            read_count: manifest.read.files.len(),
             deny: build_globset(&manifest.deny.files, "deny")?,
             ask: build_globset(&manifest.ask.files, "ask")?,
             full: build_globset(&manifest.full.files, "full")?,
@@ -38,9 +48,19 @@ impl CompiledManifest {
 
     /// Evalua si una operacion sobre un path esta permitida.
     ///
-    /// IMPORTANTE: el path debe ser absoluto y canonicalizado
-    /// antes de llamar a este metodo (proteccion contra symlink bypass).
+    /// **CONTRATO DE SEGURIDAD:** `abs_path` debe ser un path absoluto y
+    /// canonicalizado (`std::fs::canonicalize`) antes de llamar a este metodo.
+    /// De lo contrario, un symlink puede hacer bypass de las reglas
+    /// (ver AGENTS.md — CVE-2025-59829).
+    ///
+    /// Para Global/Agent manifests (workspace_root vacio), los patrones
+    /// se evaluan contra el path absoluto completo (via prefix `**/`).
     pub fn evaluate(&self, abs_path: &Path, op: &FileOp) -> (PolicyDecision, PolicySource) {
+        debug_assert!(
+            abs_path.is_absolute() || abs_path.has_root(),
+            "SECURITY: path must be absolute/canonicalized before evaluate(): {}",
+            abs_path.display()
+        );
         let bucket = self.bucket_for_path(abs_path);
 
         let decision = match bucket {
@@ -118,6 +138,16 @@ impl CompiledManifest {
                 FileOp::Delete => PolicyDecision::Deny,
             },
         }
+    }
+
+    pub fn bucket_counts(&self) -> (usize, usize, usize, usize, usize) {
+        (
+            self.deny_count,
+            self.ask_count,
+            self.write_count,
+            self.delete_count,
+            self.read_count,
+        )
     }
 }
 
@@ -217,5 +247,87 @@ files = ["**"]"#,
         let (decision, source) = cm.evaluate(Path::new("/other/secret.key"), &FileOp::Read);
         assert_eq!(decision, PolicyDecision::Allow);
         assert_eq!(source, PolicySource::Default);
+    }
+
+    /// CVE-2025-59829 regression: symlink bypass blocked via canonicalize.
+    ///
+    /// Create a workspace where `outside/` is denied. Create a symlink
+    /// `safe/link → outside/`. Attempt to access `safe/link/secret.txt`.
+    /// After canonicalize resolves the symlink, the path maps to
+    /// `outside/secret.txt` which MUST be denied.
+    #[cfg(unix)]
+    #[test]
+    fn symlink_bypass_blocked_via_canonicalize() {
+        use std::os::unix::fs as unix_fs;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let workspace_raw = tmp.path();
+        let workspace = std::fs::canonicalize(workspace_raw).unwrap();
+
+        let outside = workspace.join("outside");
+        let safe = workspace.join("safe");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::create_dir(&safe).unwrap();
+
+        let secret = outside.join("secret.txt");
+        std::fs::write(&secret, b"API_KEY=secret").unwrap();
+
+        let link = safe.join("link");
+        unix_fs::symlink(&outside, &link).unwrap();
+
+        let manifest = ProjectManifest::parse_str(
+            r#"
+[deny]
+files = ["outside/**"]
+"#,
+        )
+        .unwrap();
+        let compiled = CompiledManifest::compile(&manifest, workspace.clone()).unwrap();
+
+        let symlink_target = link.join("secret.txt");
+        let canonical = std::fs::canonicalize(&symlink_target).unwrap();
+
+        let (decision, _source) = compiled.evaluate(&canonical, &FileOp::Read);
+        assert_eq!(
+            decision,
+            PolicyDecision::Deny,
+            "CVE-2025-59829: symlink bypass — canonicalized path {:?} should be Deny",
+            canonical
+        );
+    }
+
+    /// Cross-platform test: canonicalize + evaluate respects deny rules on real files.
+    /// Verifies that the canonicalize-before-evaluate contract works end-to-end,
+    /// which is the mitigation for CVE-2025-59829.
+    #[test]
+    fn canonicalized_path_respects_deny() {
+        let tmp = tempfile::tempdir().unwrap();
+        let workspace_raw = tmp.path();
+        let workspace = std::fs::canonicalize(workspace_raw).unwrap();
+
+        let outside = workspace.join("outside");
+        std::fs::create_dir(&outside).unwrap();
+
+        let secret = outside.join("secret.txt");
+        std::fs::write(&secret, b"API_KEY=secret").unwrap();
+
+        let manifest = ProjectManifest::parse_str(
+            r#"
+[deny]
+files = ["outside/**"]
+"#,
+        )
+        .unwrap();
+        let compiled = CompiledManifest::compile(&manifest, workspace.clone()).unwrap();
+
+        let canonical = std::fs::canonicalize(&secret).unwrap();
+        let (decision, _source) = compiled.evaluate(&canonical, &FileOp::Read);
+        assert_eq!(decision, PolicyDecision::Deny);
+
+        let (decision, _source) = compiled.evaluate(&canonical, &FileOp::Write);
+        assert_eq!(decision, PolicyDecision::Deny);
+
+        let (decision, _source) = compiled.evaluate(&canonical, &FileOp::Delete);
+        assert_eq!(decision, PolicyDecision::Deny);
     }
 }

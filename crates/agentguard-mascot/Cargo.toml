@@ -1,0 +1,16 @@
+[package]
+name = "agentguard-mascot"
+description = "Guardian Husky — pixel-art dog mascot with animations for the terminal"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "agentguard-mascot"
+path = "src/main.rs"
+
+[dependencies]
+ratatui.workspace = true
+crossterm.workspace = true
+
+[lints]
+workspace = true

@@ -1,10 +1,9 @@
 use agentguard_core::GuardResult;
 use agentguard_ipc::IpcClient;
-use agentguard_manifest::{find_manifest, ProjectManifest};
 use std::path::PathBuf;
 
 pub async fn validate(path: PathBuf) -> GuardResult<()> {
-    let abs = path.canonicalize().unwrap_or_else(|_| path.clone());
+    let abs = resolve_existing_path(path);
 
     let client = IpcClient::new();
     let result = client.validate_project(abs).await?;
@@ -36,14 +35,7 @@ pub async fn validate(path: PathBuf) -> GuardResult<()> {
 }
 
 pub async fn check(file: PathBuf, op: String) -> GuardResult<()> {
-    let abs = file
-        .canonicalize()
-        .or_else(|_| {
-            std::env::current_dir()
-                .map(|cwd| cwd.join(&file))
-                .and_then(|p| p.canonicalize())
-        })
-        .unwrap_or_else(|_| file.clone());
+    let abs = resolve_path_allow_missing(file);
 
     let client = IpcClient::new();
     let result = client.check_file(abs, op).await?;
@@ -67,7 +59,7 @@ pub async fn check(file: PathBuf, op: String) -> GuardResult<()> {
 }
 
 pub async fn unregister(path: PathBuf) -> GuardResult<()> {
-    let abs = path.canonicalize().unwrap_or_else(|_| path.clone());
+    let abs = resolve_existing_path(path);
 
     IpcClient::new().unregister_project(abs.clone()).await?;
     println!("+ Proyecto eliminado de la vigilancia: {}", abs.display());
@@ -76,46 +68,118 @@ pub async fn unregister(path: PathBuf) -> GuardResult<()> {
 }
 
 pub async fn off(path: PathBuf) -> GuardResult<()> {
-    let abs = path.canonicalize().unwrap_or_else(|_| path.clone());
+    let abs = resolve_existing_path(path);
     IpcClient::new().disable_protection(abs.clone()).await?;
     println!("+ Protecciones desactivadas: {}", abs.display());
     Ok(())
 }
 
 pub async fn on(path: PathBuf) -> GuardResult<()> {
-    let abs = path.canonicalize().unwrap_or_else(|_| path.clone());
+    let abs = resolve_existing_path(path);
     IpcClient::new().enable_protection(abs.clone()).await?;
     println!("+ Protecciones reactivadas: {}", abs.display());
     Ok(())
 }
 
 pub async fn reload(path: PathBuf) -> GuardResult<()> {
-    let abs = path.canonicalize().unwrap_or_else(|_| path.clone());
-    IpcClient::new()
+    let abs = resolve_existing_path(path);
+    let resp = IpcClient::new()
         .send(agentguard_ipc::IpcRequest::ReloadPolicy { path: abs.clone() })
         .await?;
-    println!("+ Policy reloaded from disk: {}", abs.display());
-    Ok(())
+    match resp {
+        agentguard_ipc::IpcResponse::Ok => {
+            println!("+ Policy reloaded from disk: {}", abs.display());
+            Ok(())
+        }
+        agentguard_ipc::IpcResponse::Error { message } => {
+            Err(agentguard_core::GuardError::IpcError(message))
+        }
+        other => Err(agentguard_core::GuardError::IpcError(format!(
+            "unexpected response: {other:?}"
+        ))),
+    }
 }
 
 pub async fn show() -> GuardResult<()> {
     let cwd = std::env::current_dir().map_err(agentguard_core::GuardError::Io)?;
-    let toml_path = find_manifest(&cwd)?;
-    let manifest = ProjectManifest::from_file(&toml_path)?;
 
-    println!("Project policy: {}", toml_path.display());
-    println!();
-    println!("  default mode: {:?}", manifest.project.default);
-    println!();
+    let client = IpcClient::new();
+    let resp = client
+        .send(agentguard_ipc::IpcRequest::GetPolicy { path: cwd.clone() })
+        .await?;
 
-    print_bucket("deny", &manifest.deny.files);
-    print_bucket("ask", &manifest.ask.files);
-    print_bucket("full", &manifest.full.files);
-    print_bucket("delete", &manifest.delete.files);
-    print_bucket("write", &manifest.write.files);
-    print_bucket("read", &manifest.read.files);
+    match resp {
+        agentguard_ipc::IpcResponse::Policy(policy) => {
+            println!(
+                "Project policy: {} (default: {})",
+                policy.project_name, policy.default_mode
+            );
+            println!();
 
-    Ok(())
+            print_bucket("deny", &policy.deny);
+            print_bucket("ask", &policy.ask);
+            print_bucket("full", &policy.full);
+            print_bucket("delete", &policy.delete);
+            print_bucket("write", &policy.write);
+            print_bucket("read", &policy.read);
+
+            Ok(())
+        }
+        agentguard_ipc::IpcResponse::Error { message } => {
+            Err(agentguard_core::GuardError::IpcError(message))
+        }
+        other => Err(agentguard_core::GuardError::IpcError(format!(
+            "unexpected response: {other:?}"
+        ))),
+    }
+}
+
+pub async fn verify(path: PathBuf, json: bool) -> GuardResult<()> {
+    let abs = resolve_existing_path(path);
+    let report = IpcClient::new().verify_protection(abs.clone()).await?;
+
+    if json {
+        let body = serde_json::to_string_pretty(&report).map_err(|e| {
+            agentguard_core::GuardError::IpcError(format!("json encode failed: {e}"))
+        })?;
+        println!("{body}");
+        if report.unhealthy_paths.is_empty() {
+            return Ok(());
+        }
+        return Err(agentguard_core::GuardError::IpcError(format!(
+            "{} deny paths are not fully protected",
+            report.unhealthy_paths.len()
+        )));
+    }
+
+    println!("Project: {}", report.workspace.display());
+    println!(
+        "Protected deny paths (full health): {}/{}",
+        report.healthy_paths, report.total_deny_paths
+    );
+    println!(
+        "Protected deny paths (effective deny): {}/{}",
+        report.effective_deny_paths, report.total_deny_paths
+    );
+
+    if report.unhealthy_paths.is_empty() {
+        println!("+ All deny paths have active protection.");
+        return Ok(());
+    }
+
+    println!("- Unhealthy deny paths: {}", report.unhealthy_paths.len());
+    for item in &report.unhealthy_paths {
+        println!("  {}", item.path.display());
+        println!(
+            "    exists={} content_deny={} metadata_deny={} effective_deny={}",
+            item.exists, item.content_deny, item.metadata_deny, item.effective_deny
+        );
+    }
+
+    Err(agentguard_core::GuardError::IpcError(format!(
+        "{} deny paths are not fully protected",
+        report.unhealthy_paths.len()
+    )))
 }
 
 fn print_bucket(name: &str, files: &[String]) {
@@ -133,4 +197,39 @@ fn print_bucket(name: &str, files: &[String]) {
         println!("    {f}");
     }
     println!();
+}
+
+fn resolve_existing_path(path: PathBuf) -> PathBuf {
+    let base = absolutize(path);
+    match base.canonicalize() {
+        Ok(p) => strip_verbatim_prefix(p),
+        Err(_) => strip_verbatim_prefix(base),
+    }
+}
+
+fn resolve_path_allow_missing(path: PathBuf) -> PathBuf {
+    let base = absolutize(path);
+    match base.canonicalize() {
+        Ok(p) => strip_verbatim_prefix(p),
+        Err(_) => strip_verbatim_prefix(base),
+    }
+}
+
+fn absolutize(path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path
+    } else if let Ok(cwd) = std::env::current_dir() {
+        cwd.join(path)
+    } else {
+        path
+    }
+}
+
+fn strip_verbatim_prefix(path: PathBuf) -> PathBuf {
+    let s = path.to_string_lossy();
+    if let Some(stripped) = s.strip_prefix("\\\\?\\") {
+        PathBuf::from(stripped)
+    } else {
+        path
+    }
 }

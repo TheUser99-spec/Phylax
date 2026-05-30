@@ -1,7 +1,7 @@
 pub mod migrations;
 pub mod queries;
 
-pub use queries::RegisteredProject;
+pub use queries::{AgentRuleRow, RegisteredProject};
 
 use agentguard_core::GuardError;
 use rusqlite::{Connection, OpenFlags};
@@ -35,7 +35,7 @@ impl Store {
         )
         .map_err(|e| GuardError::Database(format!("open {}: {e}", path.display())))?;
 
-        conn.execute_batch("PRAGMA busy_timeout = 5000;")
+        conn.execute_batch("PRAGMA busy_timeout = 1000;")
             .map_err(|e| GuardError::Database(format!("PRAGMA busy_timeout: {e}")))?;
 
         conn.execute_batch(
@@ -82,10 +82,14 @@ impl Store {
     }
 
     /// Default database path on Windows: %APPDATA%\AgentGuard\agentguard.db
+    /// Falls back to %LOCALAPPDATA% → %USERPROFILE% → current directory.
     pub fn default_path() -> PathBuf {
         #[cfg(target_os = "windows")]
         {
-            let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
+            let appdata = std::env::var("APPDATA")
+                .or_else(|_| std::env::var("LOCALAPPDATA"))
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
             PathBuf::from(appdata)
                 .join("AgentGuard")
                 .join("agentguard.db")

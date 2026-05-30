@@ -1,195 +1,217 @@
-# AGENTS.md — AgentGuard Codebase Guide
+# AGENTS.md - AgentGuard Codebase Guide
 
-Este fichero existe para que los agentes de IA (Claude Code, Cursor, Copilot, etc.)
-entiendan la arquitectura antes de tocar cualquier cosa.
+This file is for AI coding agents (Codex, Claude Code, Cursor, Copilot, etc.) so they can understand the architecture before making changes.
 
----
+## What this project is
 
-## Qué es este proyecto
+AgentGuard is a Windows security layer that constrains what AI agents can read, write, or delete at the OS level.
 
-AgentGuard es una herramienta de seguridad para Windows que bloquea a otros agentes
-de IA a nivel OS. Controla qué ficheros pueden leer, escribir o borrar.
+Primary stack: Rust.
+Kernel minifilter driver (Phase 2): C++ in `driver/`.
+Do not modify `driver/` unless explicitly requested.
 
-Stack: **Rust** (todo excepto el driver). El driver kernel es C++ (Phase 2, carpeta `driver/`).
-**No modifiques** la carpeta `driver/` a menos que se te pida explícitamente.
+## Workspace structure
 
----
-
-## Estructura del workspace
-
-```
+```text
 crates/
-  agentguard-core/      ← TIPOS BASE. Zero deps externas. Si tocas esto, afectas todo.
-  agentguard-manifest/  ← Parser agentguard.toml + GlobSets compilados
-  agentguard-policy/    ← Motor de decisiones: deny > ask > full > delete > write > read
-  agentguard-store/     ← SQLite (rusqlite). Todas las tablas. Nadie más toca la DB.
-  agentguard-probe/     ← Poller ToolHelp32 + SubjectClassifier (Windows only)
-  agentguard-enforce/   ← DENY ACEs + MIC labels (Windows only)
-  agentguard-ipc/       ← Named pipe daemon <-> CLI
-  agentguard-notify/    ← Toast notifications Windows para [ask]
-  agentguard-audit/     ← Escribe AuditEvents a agentguard-store
-  agentguard-daemon/    ← Windows Service. Orquesta todo. Binario principal.
-  agentguard-cli/       ← CLI: agentguard init / status / project / daemon
-  agentguard-tui/       ← Dashboard ratatui
+  agentguard-core/      <- Base types and shared errors (no external deps)
+  agentguard-manifest/  <- agentguard.toml parser + compiled GlobSets + auto-discovery
+  agentguard-policy/    <- Decision engine (deny > ask > full > delete > write > read)
+  agentguard-store/     <- SQLite access and schema ownership
+  agentguard-probe/     <- Process polling + subject classification (Windows-focused)
+  agentguard-enforce/   <- ACL/ACE enforcement and coordination
+  agentguard-ipc/       <- Named-pipe protocol and client/server
+  agentguard-notify/    <- User prompts/notifications for [ask]
+  agentguard-audit/     <- Audit logging integration
+  agentguard-daemon/    <- Main orchestrator/service logic
+  agentguard-cli/       <- CLI entrypoint and commands
+  agentguard-tui/       <- Ratatui dashboard
+  agentguard-mascot/    <- Optional terminal mascot UI crate
+
+crates not in workspace members:
+  agentguard-spawn/     <- Standalone helper crate (present in repo, not listed in workspace members)
 
 modules/
-  agentguard-scanner/   ← Phase 3. NO tocar hasta que se indique.
-  agentguard-team/      ← Phase 4. NO tocar hasta que se indique.
+  agentguard-scanner/   <- Phase 3 placeholder
+  agentguard-team/      <- Phase 4 placeholder
 
-driver/                 ← C++ minifilter. Phase 2. NO tocar.
-docs/adr/               ← Architecture Decision Records. Leer antes de cambiar arquitectura.
+driver/
+  C++ minifilter (Phase 2)
+
+docs/adr/
+  Architecture Decision Records
 ```
 
----
+## Rules you must follow
 
-## Reglas que DEBES seguir
+### 1. Preserve dependency direction
 
-### 1. Orden de dependencias — nunca romperlo
-
-```
-core ← manifest ← policy ← (enforce, audit, probe, notify, ipc) ← daemon
-                                                                  ← cli
-                                                                  ← tui
+```text
+core <- manifest <- policy <- (enforce, audit, probe, notify, ipc) <- daemon
+                                                              <- cli
+                                                              <- tui
 ```
 
-- `agentguard-core` NO puede depender de ningún otro crate del workspace.
-- `agentguard-manifest` y `agentguard-policy` son portables — sin Windows APIs.
-- `agentguard-store` es portable (rusqlite es cross-platform).
-- `agentguard-probe` y `agentguard-enforce` son Windows-only.
+- `agentguard-core` must not depend on other workspace crates.
+- `agentguard-manifest` and `agentguard-policy` should stay portable.
+- All DB operations go through `agentguard-store`.
 
-### 2. Nunca toques agentguard-core sin consenso explícito
+### 2. Do not change core types casually
 
-Los tipos en `agentguard-core` son la interfaz entre todos los crates.
-Un cambio aquí rompe el workspace entero. Pregunta antes de modificar.
+`agentguard-core` is the contract between crates. Any change there can break the whole workspace.
 
-### 3. Realpath SIEMPRE antes de glob match
+### 3. Canonicalize paths before glob matching
 
 ```rust
-// CORRECTO
 let canonical = std::fs::canonicalize(&path)?;
-let relative  = canonical.strip_prefix(&workspace_root)?;
+let relative = canonical.strip_prefix(&workspace_root)?;
 compiled_manifest.evaluate(relative, &op);
-
-// INCORRECTO — symlink bypass (CVE-2025-59829)
-compiled_manifest.evaluate(&path, &op);
 ```
 
-### 4. Toda la DB pasa por agentguard-store
+Never evaluate raw unresolved paths directly.
 
-Ningún otro crate importa `rusqlite` directamente. Si necesitas leer o escribir
-algo en la DB, añade un método a `agentguard_store::Store`.
+### 4. Store is the only DB boundary
 
-### 5. Tests antes de dar nada por hecho
+No other crate should import `rusqlite` directly for business data access.
+
+### 5. Test before claiming behavior
+
+Use targeted crate tests first, then broader runs.
+
+### 6. Phase 3/4 modules must remain decoupled
+
+`modules/agentguard-scanner` and `modules/agentguard-team` should not depend on enforcement/probe/daemon internals.
+
+## Permission model
+
+Priority order:
+
+1. `deny`
+2. `ask`
+3. `full`
+4. `delete`
+5. `write`
+6. `read`
+
+`deny` always wins.
+
+Default when no rule matches:
+- `conservative`: read Allow, write Ask, delete Deny
+- `unrestricted`: Allow all
+
+## IPC protocol snapshot
+
+Current protocol includes 20 request types in `agentguard-ipc` (`RegisterProject`, `UnregisterProject`, `ValidateProject`, `CheckFileAccess`, `GetStatus`, `Shutdown`, `ReloadPolicy`, `AskResponse`, global rule CRUD, protection toggle, event subscription, stats/policy queries, and agent rule CRUD).
+
+## Verified status (as tested on 2026-05-29)
+
+Workspace members from root `Cargo.toml`:
+- `agentguard-core`
+- `agentguard-manifest`
+- `agentguard-policy`
+- `agentguard-store`
+- `agentguard-probe`
+- `agentguard-enforce`
+- `agentguard-ipc`
+- `agentguard-notify`
+- `agentguard-audit`
+- `agentguard-daemon`
+- `agentguard-cli`
+- `agentguard-tui`
+- `agentguard-mascot`
+
+Test listing counts (`cargo test -p <crate> -- --list`):
+
+| Crate | Listed tests |
+|---|---:|
+| agentguard-core | 5 |
+| agentguard-manifest | 48 |
+| agentguard-policy | 8 |
+| agentguard-store | 16 |
+| agentguard-probe | 27 |
+| agentguard-enforce | 11 |
+| agentguard-ipc | 28 |
+| agentguard-notify | 1 |
+| agentguard-audit | 5 |
+| agentguard-daemon | 22 |
+| agentguard-cli | 38 |
+| agentguard-tui | 0 |
+| agentguard-mascot | 1 |
+
+Execution notes from this environment:
+- `cargo test --workspace` is currently not fully green in this shell context.
+- `agentguard-cli` e2e tests fail when daemon pipe `\\.\pipe\agentguard` is not running.
+- `agentguard-enforce` has permission-sensitive tests that can fail with `SetNamedSecurityInfoW DACL: 5` depending on execution privileges.
+
+## Useful commands
 
 ```bash
-cargo test --workspace          # todos los tests
-cargo test -p agentguard-manifest  # solo un crate
-```
-
-Los tests de `agentguard-manifest` y `agentguard-store` son los más críticos.
-No mergees nada que rompa esos tests.
-
-### 6. Los módulos (Phase 3/4) no tocan core
-
-`agentguard-scanner` y `agentguard-team` implementan el trait `Module`:
-```rust
-trait Module: Send + Sync {
-    fn name(&self) -> &str;
-    fn on_agent_event(&self, event: &AgentEvent) -> GuardResult<()>;
-}
-```
-No pueden importar `agentguard-enforce`, `agentguard-probe`, ni `agentguard-daemon`.
-
----
-
-## El modelo de permisos — entiéndelo antes de tocar policy
-
-Los 6 buckets en orden de prioridad:
-
-| Prioridad | Bucket | Read | Write | Delete |
-|-----------|--------|------|-------|--------|
-| 1 (máx)   | deny   | ✗    | ✗     | ✗      |
-| 2         | ask    | ?    | ?     | ?      |
-| 3         | full   | ✓    | ✓     | ✓      |
-| 4         | delete | ✓    | ✗     | ✓      |
-| 5         | write  | ✓    | ✓     | ✗      |
-| 6         | read   | ✓    | ✗     | ✗      |
-
-**deny SIEMPRE gana**, incluso si el fichero también aparece en write o full.
-Si un fichero no aparece en ningún bucket → se aplica `default_mode`:
-- `conservative`: read=Allow, write=Ask, delete=Deny
-- `unrestricted`: todo Allow
-
----
-
-## Qué está implementado (Phase 1 en curso)
-
-| Crate | Estado |
-|-------|--------|
-| agentguard-core | ✅ Tipos base + errors (5 tests) |
-| agentguard-manifest | ✅ Parser + GlobSets + discovery (12 tests) |
-| agentguard-store | ✅ SQLite + migraciones + list_projects + count_events_today (6 tests) |
-| agentguard-policy | ✅ CompiledPolicy global > project (3 tests) |
-| agentguard-audit | ✅ Auditor funcional (0 tests propios, 6 store) |
-| agentguard-probe | ✅ SubjectClassifier 5 señales + AgentSessionTracker + ProcessPoller (10 tests) |
-| agentguard-enforce | ✅ DENY ACEs 3-capas + MIC + Enforcer walkdir coordinator (8 tests) |
-| agentguard-ipc | ✅ Named pipe bidirectional + codec + integration tests (28 tests) |
-| agentguard-notify | ✅ Windows MessageBoxW + Unix terminal prompt (6 tests: 5 Unix + 1 Windows) |
-| agentguard-daemon | ✅ Entry point + orchestrator + watcher + poller + handler IPC (0 tests propios) |
-| agentguard-cli | ✅ 14 comandos conectados a IPC vía IpcClient (22 tests parsing) |
-| agentguard-tui | ⏳ Dashboard ratatui — deferred to post-Phase 1 |
-
----
-
-## Phase 1 — 100% implementado (11/12 crates, 100 tests)
-
-Todos los crates Phase 1 compilan, pasan tests y clippy sin warnings propios.
-
-## Phase 1.5 — Dynamic Agent Detection ✅
-
-Poller ToolHelp32 (`agentguard-probe::poller`) implementado y conectado al daemon:
-- Snapshot cada 750ms de todos los procesos del sistema
-- Detecta procesos nuevos (Started) y desaparecidos (Exited)
-- Classifier S2 (image name) + S5 (inheritance via parent PID)
-- Validación PID reuse con `GetProcessTimes`
-- Al detectar agente → protege todos los proyectos registrados
-- Al desaparecer el último agente → libera todas las protecciones
-- El daemon muestra `Dynamic agent detection: ACTIVE (750ms polling)` al arrancar
-
-Lo que queda para release v0.1.0: ADRs, .msi installer, Windows Service wrapper.
-
----
-
-## Comandos útiles
-
-```bash
-# Compilar todo el workspace
 cargo build --workspace
-
-# Tests de los crates portables (funcionan en cualquier OS)
-cargo test -p agentguard-core
+cargo test --workspace
 cargo test -p agentguard-manifest
 cargo test -p agentguard-store
-cargo test -p agentguard-policy
-
-# Ver árbol de dependencias
-cargo tree -p agentguard-daemon
-
-# Formatear
-cargo fmt --all
-
-# Linter
-cargo clippy --workspace
+cargo run -p agentguard-daemon
+cargo run -p agentguard-tui
+cargo run -p agentguard-cli -- status
 ```
 
----
+## Files that require explicit approval before modification
 
-## Ficheros que NO debes modificar sin permiso explícito
+- Root `Cargo.toml`
+- `crates/agentguard-core/src/types.rs`
+- `crates/agentguard-store/src/migrations.rs`
+- `driver/**`
+- `modules/**`
+- `docs/adr/**` (append new ADRs, do not delete historical ones)
 
-- `Cargo.toml` raíz del workspace (añadir deps compartidas requiere consenso)
-- `crates/agentguard-core/src/types.rs` (cambiar tipos rompe todo)
-- `crates/agentguard-store/src/migrations.rs` (cambiar schema requiere migración)
-- `driver/**` (C++, Phase 2)
-- `modules/**` (Phase 3/4)
-- `AGENTS.md` (este fichero)
-- `docs/adr/**` (solo añadir, nunca borrar)
+## System architecture summary
+
+```text
+Probe/Poller -> Classifier -> Orchestrator -> Policy + Enforce + Audit + Store
+                                     |
+                                     +-> IPC server (named pipe) -> CLI/TUI
+```
+
+## TUI and CLI overview
+
+TUI tabs (current): Status, Agents, Projects, Events, Stats, Rules.
+
+CLI supports project operations, global rules, agent rules, status/audit, and daemon lifecycle management.
+
+## Security notes
+
+- Keep symlink/path canonicalization guarantees intact.
+- Keep pipe ACL constraints strict.
+- Keep retry/verification behavior around ACL application.
+- Treat global-rule precedence and fail-closed behavior as non-regression targets.
+
+## Phase 2 roadmap
+
+When the kernel minifilter is operational, these Phase 1 features become enforceable:
+
+### 1. Per-agent overrides (infrastructure ready, enforcement pending)
+
+The DB, IPC, CLI and compilation pipeline for per-agent rules is complete. Rules are stored in
+`agent_manifests: HashMap<String, CompiledManifest>` but not evaluated. The minifilter must:
+
+- Pass `pid` to daemon in every I/O query
+- Daemon resolves `pid` → `AgentLabel` + `image_name` via tracker
+- Evaluate `agent_manifests[image_name]` **first** (highest priority)
+
+Priority chain: `per-agent > global > project > default`
+
+### 2. Ask flow (infrastructure ready, enforcement pending)
+
+`emit_ask_prompt`, `process_ask_response`, `pending_asks` and the TUI modal all work end-to-end
+in IPC. The minifilter must:
+
+- Receive `Ask` decision from daemon → pause the I/O IRP
+- Wait for user response via TUI/CLI (timeout → deny)
+- Resume IRP with allow or complete with `STATUS_ACCESS_DENIED`
+
+### 3. Bucket-aware enforcement
+
+Phase 1 applies ACEs per bucket (`deny`=full block, `write`=no-delete, `delete`=no-write,
+`read`=readonly). The minifilter can enforce these precisely per-operation without filesystem ACLs.
+
+See ADR 007 and ADR 008 in `docs/adr/` for full details.

@@ -415,21 +415,76 @@ impl Store {
 
     pub fn count_events_today(&self) -> Result<(u64, u64), GuardError> {
         let conn = self.lock()?;
+        // Daily stats are computed in local machine time for UI alignment.
         let total: u64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM audit_events WHERE date(ts, 'unixepoch') = date('now')",
+                "SELECT COUNT(*) FROM audit_events
+                 WHERE date(ts, 'unixepoch', 'localtime') = date('now', 'localtime')",
                 [],
                 |row| row.get(0),
             )
             .map_err(|e| GuardError::Database(e.to_string()))?;
         let blocks: u64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM audit_events WHERE decision = 'deny' AND date(ts, 'unixepoch') = date('now')",
+                "SELECT COUNT(*) FROM audit_events
+                 WHERE decision = 'deny'
+                   AND date(ts, 'unixepoch', 'localtime') = date('now', 'localtime')",
                 [],
                 |row| row.get(0),
             )
             .map_err(|e| GuardError::Database(e.to_string()))?;
         Ok((total, blocks))
+    }
+
+    pub fn stats_today(&self) -> Result<(u64, u64, u64, u64), GuardError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT
+                    COUNT(*) as total,
+                    COALESCE(SUM(CASE WHEN decision='deny'  THEN 1 ELSE 0 END), 0) as blocks,
+                    COALESCE(SUM(CASE WHEN decision='allow' THEN 1 ELSE 0 END), 0) as allows,
+                    COALESCE(SUM(CASE WHEN decision='ask'   THEN 1 ELSE 0 END), 0) as asks
+                 FROM audit_events
+                 WHERE date(ts, 'unixepoch', 'localtime') = date('now', 'localtime')",
+            )
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+        stmt.query_row([], |row| {
+            Ok((
+                row.get::<_, u64>(0)?,
+                row.get::<_, u64>(1)?,
+                row.get::<_, u64>(2)?,
+                row.get::<_, u64>(3)?,
+            ))
+        })
+        .map_err(|e| GuardError::Database(e.to_string()))
+    }
+
+    pub fn top_agents_today(&self, limit: usize) -> Result<Vec<(String, u64)>, GuardError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT agent_label, COUNT(*) as cnt
+                 FROM audit_events
+                 WHERE date(ts, 'unixepoch', 'localtime') = date('now', 'localtime')
+                 GROUP BY agent_label
+                 ORDER BY cnt DESC
+                 LIMIT ?1",
+            )
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![limit as i64], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+            })
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row.map_err(|e| GuardError::Database(e.to_string()))?);
+        }
+        Ok(result)
     }
 }
 
@@ -466,6 +521,116 @@ impl Store {
             .get_setting("tier")?
             .unwrap_or_else(|| "free".to_string()))
     }
+
+    pub fn insert_ask_decision(
+        &self,
+        path: &std::path::Path,
+        response: &str,
+        session_id: i64,
+    ) -> Result<(), GuardError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "INSERT INTO ask_decisions (path, response, session_id, decided_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![
+                path.to_string_lossy().to_string(),
+                response,
+                session_id,
+                chrono::Utc::now().timestamp(),
+            ],
+        )
+        .map_err(|e| GuardError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    // ── Agent rules ──────────────────────────────────────────────────────
+
+    pub fn insert_agent_rule(
+        &self,
+        agent_image: &str,
+        bucket: &str,
+        pattern: &str,
+    ) -> Result<i64, GuardError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "INSERT INTO agent_rules (agent_image, bucket, pattern) VALUES (?1, ?2, ?3)",
+            rusqlite::params![agent_image, bucket, pattern],
+        )
+        .map_err(|e| GuardError::Database(e.to_string()))?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn delete_agent_rule(&self, id: i64) -> Result<(), GuardError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "DELETE FROM agent_rules WHERE id = ?1",
+            rusqlite::params![id],
+        )
+        .map_err(|e| GuardError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn list_agent_rules(
+        &self,
+        agent_image: Option<&str>,
+    ) -> Result<Vec<AgentRuleRow>, GuardError> {
+        let conn = self.lock()?;
+        let mut rows_data: Vec<(i64, String, String, String)> = Vec::new();
+
+        {
+            let mut stmt = if let Some(_img) = agent_image {
+                conn.prepare(
+                    "SELECT id, agent_image, bucket, pattern FROM agent_rules WHERE agent_image = ?1 ORDER BY id",
+                )
+            } else {
+                conn.prepare(
+                    "SELECT id, agent_image, bucket, pattern FROM agent_rules ORDER BY agent_image, id",
+                )
+            }
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+            let mut rows = if let Some(img) = agent_image {
+                stmt.query(rusqlite::params![img])
+            } else {
+                stmt.query([])
+            }
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+            while let Some(row) = rows
+                .next()
+                .map_err(|e| GuardError::Database(e.to_string()))?
+            {
+                rows_data.push((
+                    row.get::<_, i64>(0)
+                        .map_err(|e| GuardError::Database(e.to_string()))?,
+                    row.get::<_, String>(1)
+                        .map_err(|e| GuardError::Database(e.to_string()))?,
+                    row.get::<_, String>(2)
+                        .map_err(|e| GuardError::Database(e.to_string()))?,
+                    row.get::<_, String>(3)
+                        .map_err(|e| GuardError::Database(e.to_string()))?,
+                ));
+            }
+        }
+
+        Ok(rows_data
+            .into_iter()
+            .map(|(id, agent_image, bucket, pattern)| AgentRuleRow {
+                id,
+                agent_image,
+                bucket,
+                pattern,
+            })
+            .collect())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentRuleRow {
+    pub id: i64,
+    pub agent_image: String,
+    pub bucket: String,
+    pub pattern: String,
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -575,5 +740,234 @@ mod tests {
 
         s.unregister_project(root).unwrap();
         assert!(s.active_projects().unwrap().is_empty());
+    }
+
+    #[test]
+    fn stats_today_initial_is_zero() {
+        let s = store();
+        let (total, blocks, allows, asks) = s.stats_today().unwrap();
+        assert_eq!(total, 0);
+        assert_eq!(blocks, 0);
+        assert_eq!(allows, 0);
+        assert_eq!(asks, 0);
+    }
+
+    #[test]
+    fn stats_today_counts_by_decision() {
+        let s = store();
+        let event = |decision: &str| AuditEvent {
+            id: None,
+            agent_pid: 100,
+            agent_label: AgentLabel::Definite,
+            file_path: PathBuf::from("/test/file"),
+            operation: FileOp::Read,
+            decision: match decision {
+                "deny" => PolicyDecision::Deny,
+                "allow" => PolicyDecision::Allow,
+                "ask" => PolicyDecision::Ask {
+                    path: PathBuf::from("/test/file"),
+                    op: FileOp::Read,
+                },
+                _ => PolicyDecision::Deny,
+            },
+            source: PolicySource::Project,
+            timestamp: Utc::now(),
+        };
+
+        s.insert_audit_event(&event("deny")).unwrap();
+        s.insert_audit_event(&event("deny")).unwrap();
+        s.insert_audit_event(&event("allow")).unwrap();
+        s.insert_audit_event(&event("ask")).unwrap();
+
+        let (total, blocks, allows, asks) = s.stats_today().unwrap();
+        assert_eq!(total, 4);
+        assert_eq!(blocks, 2);
+        assert_eq!(allows, 1);
+        assert_eq!(asks, 1);
+    }
+
+    #[test]
+    fn top_agents_today_counts_correctly() {
+        let s = store();
+        let mk = |label: AgentLabel| AuditEvent {
+            id: None,
+            agent_pid: 100,
+            agent_label: label,
+            file_path: PathBuf::from("/test/env"),
+            operation: FileOp::Read,
+            decision: PolicyDecision::Deny,
+            source: PolicySource::Project,
+            timestamp: Utc::now(),
+        };
+
+        s.insert_audit_event(&mk(AgentLabel::Definite)).unwrap();
+        s.insert_audit_event(&mk(AgentLabel::Definite)).unwrap();
+        s.insert_audit_event(&mk(AgentLabel::Definite)).unwrap();
+        s.insert_audit_event(&mk(AgentLabel::Probable)).unwrap();
+        s.insert_audit_event(&mk(AgentLabel::Probable)).unwrap();
+        s.insert_audit_event(&mk(AgentLabel::Inherited)).unwrap();
+
+        let top = s.top_agents_today(5).unwrap();
+        assert_eq!(top.len(), 3);
+        assert_eq!(top[0].0, "DEFINITE");
+        assert_eq!(top[0].1, 3);
+        assert_eq!(top[1].0, "PROBABLE");
+        assert_eq!(top[1].1, 2);
+        assert_eq!(top[2].0, "INHERITED");
+        assert_eq!(top[2].1, 1);
+    }
+
+    #[test]
+    fn top_agents_today_respects_limit() {
+        let s = store();
+        let mk = |label: AgentLabel| AuditEvent {
+            id: None,
+            agent_pid: 100,
+            agent_label: label,
+            file_path: PathBuf::from("/test/env"),
+            operation: FileOp::Read,
+            decision: PolicyDecision::Deny,
+            source: PolicySource::Project,
+            timestamp: Utc::now(),
+        };
+
+        for _ in 0..5 {
+            s.insert_audit_event(&mk(AgentLabel::Definite)).unwrap();
+        }
+        s.insert_audit_event(&mk(AgentLabel::Probable)).unwrap();
+
+        let top = s.top_agents_today(1).unwrap();
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].0, "DEFINITE");
+        assert_eq!(top[0].1, 5);
+    }
+
+    #[test]
+    fn agent_rules_crud() {
+        let s = store();
+        let id = s.insert_agent_rule("cursor.exe", "deny", "*.env").unwrap();
+        assert!(id > 0);
+
+        let rules = s.list_agent_rules(None).unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].agent_image, "cursor.exe");
+        assert_eq!(rules[0].bucket, "deny");
+        assert_eq!(rules[0].pattern, "*.env");
+
+        s.delete_agent_rule(id).unwrap();
+        assert!(s.list_agent_rules(None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn agent_rules_filter_by_image() {
+        let s = store();
+        s.insert_agent_rule("cursor.exe", "deny", "*.env").unwrap();
+        s.insert_agent_rule("claude.exe", "ask", "*.key").unwrap();
+
+        let cursor = s.list_agent_rules(Some("cursor.exe")).unwrap();
+        assert_eq!(cursor.len(), 1);
+        assert_eq!(cursor[0].agent_image, "cursor.exe");
+
+        let all = s.list_agent_rules(None).unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn list_projects_returns_registered_with_hash() {
+        let s = store();
+        let root = Path::new("/workspace/test-project");
+        s.register_project(root, "test-project").unwrap();
+        s.set_project_hash(root, "abc123").unwrap();
+
+        let projects = s.list_projects().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "test-project");
+        assert_eq!(projects[0].toml_hash, "abc123");
+        assert!(projects[0].path.ends_with("test-project"));
+    }
+
+    #[test]
+    fn set_project_hash_updates_existing() {
+        let s = store();
+        let root = Path::new("/workspace/proj");
+        s.register_project(root, "proj").unwrap();
+
+        s.set_project_hash(root, "hash-v1").unwrap();
+        assert_eq!(s.list_projects().unwrap()[0].toml_hash, "hash-v1");
+
+        s.set_project_hash(root, "hash-v2").unwrap();
+        assert_eq!(s.list_projects().unwrap()[0].toml_hash, "hash-v2");
+    }
+
+    #[test]
+    fn count_events_today_counts_correctly() {
+        let s = store();
+        let now = chrono::Utc::now();
+
+        for _ in 0..3 {
+            s.insert_audit_event(&agentguard_core::AuditEvent {
+                id: None,
+                agent_pid: 1,
+                agent_label: agentguard_core::AgentLabel::Definite,
+                file_path: PathBuf::from("/f.txt"),
+                operation: agentguard_core::FileOp::Read,
+                decision: agentguard_core::PolicyDecision::Deny,
+                source: agentguard_core::PolicySource::Project,
+                timestamp: now,
+            })
+            .unwrap();
+        }
+        s.insert_audit_event(&agentguard_core::AuditEvent {
+            id: None,
+            agent_pid: 2,
+            agent_label: agentguard_core::AgentLabel::Probable,
+            file_path: PathBuf::from("/g.txt"),
+            operation: agentguard_core::FileOp::Write,
+            decision: agentguard_core::PolicyDecision::Allow,
+            source: agentguard_core::PolicySource::Default,
+            timestamp: now,
+        })
+        .unwrap();
+
+        let (total, blocks) = s.count_events_today().unwrap();
+        assert_eq!(total, 4);
+        assert_eq!(blocks, 3);
+    }
+
+    #[test]
+    fn insert_ask_decision_persists() {
+        let s = store();
+
+        let session = agentguard_core::AgentSession {
+            id: None,
+            pid: 42,
+            image_name: "cursor.exe".to_string(),
+            label: agentguard_core::AgentLabel::Definite,
+            workspace: None,
+            started_at: chrono::Utc::now(),
+            ended_at: None,
+        };
+        let session_id = s.start_session(&session).unwrap();
+
+        let path = Path::new("/workspace/.env");
+        s.insert_ask_decision(path, "allow_once", session_id)
+            .unwrap();
+        s.insert_ask_decision(path, "deny", session_id).unwrap();
+
+        let conn = s.lock().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM ask_decisions", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 2);
+
+        let (resp, sid): (String, i64) = conn
+            .query_row(
+                "SELECT response, session_id FROM ask_decisions ORDER BY id LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(resp, "allow_once");
+        assert_eq!(sid, session_id);
     }
 }

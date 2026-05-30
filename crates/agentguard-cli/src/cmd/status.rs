@@ -2,10 +2,10 @@ use agentguard_core::{GuardError, GuardResult};
 use agentguard_ipc::IpcClient;
 
 pub async fn run() -> GuardResult<()> {
-    let status = IpcClient::new()
-        .get_status()
-        .await
-        .map_err(|_| GuardError::DaemonNotRunning)?;
+    let status = IpcClient::new().get_status().await.map_err(|e| match e {
+        GuardError::IpcError(_) => e,
+        _ => GuardError::DaemonNotRunning,
+    })?;
 
     println!("AgentGuard v{}", status.version);
     println!();

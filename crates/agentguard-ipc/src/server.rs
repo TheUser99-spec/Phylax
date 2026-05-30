@@ -1,6 +1,6 @@
 use agentguard_core::{GuardError, GuardResult};
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::protocol::{self, IpcRequest, IpcResponse};
 
@@ -9,6 +9,7 @@ pub type RequestHandler = Arc<dyn Fn(IpcRequest) -> IpcResponse + Send + Sync>;
 pub struct IpcServer {
     handler: RequestHandler,
     pipe_override: Option<String>,
+    event_broadcast: Option<broadcast::Sender<IpcResponse>>,
 }
 
 impl IpcServer {
@@ -16,6 +17,7 @@ impl IpcServer {
         Self {
             handler,
             pipe_override: None,
+            event_broadcast: None,
         }
     }
 
@@ -23,6 +25,15 @@ impl IpcServer {
         Self {
             handler,
             pipe_override: Some(pipe),
+            event_broadcast: None,
+        }
+    }
+
+    pub fn with_events(handler: RequestHandler, events: broadcast::Sender<IpcResponse>) -> Self {
+        Self {
+            handler,
+            pipe_override: None,
+            event_broadcast: Some(events),
         }
     }
 
@@ -53,18 +64,43 @@ impl IpcServer {
         let listener = UnixListener::bind(&path)
             .map_err(|e| GuardError::IpcError(format!("failed to bind {path}: {e}")))?;
 
+        let events = self.event_broadcast.clone();
+
         loop {
             tokio::select! {
                 accept = listener.accept() => {
                     match accept {
                         Ok((mut stream, _)) => {
                             let handler = Arc::clone(&self.handler);
+                            let events = events.clone();
                             tokio::spawn(async move {
                                 loop {
                                     let req: IpcRequest = match protocol::recv(&mut stream).await {
                                         Ok(r) => r,
                                         Err(_) => break,
                                     };
+
+                                    if matches!(req, IpcRequest::SubscribeEvents) {
+                                        let _ = protocol::send(&mut stream, &IpcResponse::Ok).await;
+                                        if let Some(tx) = &events {
+                                            let mut rx = tx.subscribe();
+                                            loop {
+                                                match rx.recv().await {
+                                                    Ok(event) => {
+                                                        if protocol::send(&mut stream, &event).await.is_err() {
+                                                            break;
+                                                        }
+                                                    }
+                                                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                                                        continue;
+                                                    }
+                                                    Err(broadcast::error::RecvError::Closed) => break,
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+
                                     let resp = (handler)(req);
                                     if protocol::send(&mut stream, &resp).await.is_err() {
                                         break;
@@ -91,9 +127,12 @@ impl IpcServer {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let pipe_name = self.pipe_name();
+        let events = self.event_broadcast.clone();
         let mut pipe_security = PipeSecurity::new()?;
+        // Singleton guard: reserve the first instance of this pipe name.
+        // If another daemon already owns it, this call fails immediately.
         let mut server = ServerOptions::new()
-            .first_pipe_instance(false)
+            .first_pipe_instance(true)
             .create_with_security_attributes(&pipe_name, &mut pipe_security)
             .map_err(|e| create_pipe_error(&pipe_name, e))?;
 
@@ -103,17 +142,50 @@ impl IpcServer {
                     match connect {
                         Ok(()) => {
                             let mut pipe = server;
-                            server = ServerOptions::new()
+                            // Additional instances for the same daemon process.
+                            server = match ServerOptions::new()
                                 .first_pipe_instance(false)
                                 .create_with_security_attributes(&pipe_name, &mut pipe_security)
-                                .map_err(|e| create_pipe_error(&pipe_name, e))?;
+                            {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    eprintln!(
+                                        "IPC: failed to create replacement pipe {}: {}",
+                                        pipe_name, e
+                                    );
+                                    break;
+                                }
+                            };
                             let handler = Arc::clone(&self.handler);
+                            let events = events.clone();
                             tokio::spawn(async move {
                                 loop {
                                     let req: IpcRequest = match protocol::recv(&mut pipe).await {
                                         Ok(r) => r,
                                         Err(_) => break,
                                     };
+
+                                    if matches!(req, IpcRequest::SubscribeEvents) {
+                                        let _ = protocol::send(&mut pipe, &IpcResponse::Ok).await;
+                                        if let Some(tx) = &events {
+                                            let mut rx = tx.subscribe();
+                                            loop {
+                                                match rx.recv().await {
+                                                    Ok(event) => {
+                                                        if protocol::send(&mut pipe, &event).await.is_err() {
+                                                            break;
+                                                        }
+                                                    }
+                                                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                                                        continue;
+                                                    }
+                                                    Err(broadcast::error::RecvError::Closed) => break,
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+
                                     let resp = (handler)(req);
                                     if protocol::send(&mut pipe, &resp).await.is_err() {
                                         break;
@@ -133,7 +205,14 @@ impl IpcServer {
 
 #[cfg(windows)]
 fn create_pipe_error(pipe_name: &str, error: std::io::Error) -> GuardError {
-    GuardError::IpcError(format!("failed to create named pipe {pipe_name}: {error}"))
+    match error.raw_os_error() {
+        // ERROR_ACCESS_DENIED / ERROR_ALREADY_EXISTS:
+        // another daemon instance already owns the first pipe instance
+        Some(5) | Some(183) => GuardError::IpcError(format!(
+            "daemon already running or pipe owned by another session: {pipe_name} ({error})"
+        )),
+        _ => GuardError::IpcError(format!("failed to create named pipe {pipe_name}: {error}")),
+    }
 }
 
 #[cfg(windows)]
@@ -173,11 +252,15 @@ impl PipeSecurity {
             ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
         };
 
-        // Local-only pipe. Remote clients remain rejected by ServerOptions.
-        let sddl = std::ffi::OsStr::new("D:P(A;;GA;;;WD)")
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect::<Vec<_>>();
+        // Allow local clients to read/write while keeping admin/system full control.
+        // - WD: FILE_GENERIC_READ|WRITE so non-elevated clients can connect.
+        // - SY/BA: full control for service/admin maintenance.
+        // - Medium MIC label prevents low-integrity writers from writing up.
+        let sddl =
+            std::ffi::OsStr::new("D:P(A;;0x12019F;;;WD)(A;;FA;;;SY)(A;;FA;;;BA)S:(ML;;NW;;;ME)")
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>();
 
         let mut descriptor = std::ptr::null_mut();
         let ok = unsafe {
