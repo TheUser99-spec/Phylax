@@ -5,7 +5,7 @@
 
 use agentguard_core::{GuardError, GuardResult};
 
-const REPO: &str = "anomalyco/AgentGuard";
+const REPO: &str = "TheUser99-spec/AgentGuard";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub async fn run(check_only: bool) -> GuardResult<()> {

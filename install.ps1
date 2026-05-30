@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $InstallDir = "$env:LOCALAPPDATA\AgentGuard"
 $BinDir = "$InstallDir\bin"
-$Repo = "anomalyco/AgentGuard"
+$Repo = "TheUser99-spec/AgentGuard"
 
 Write-Host "=== AgentGuard Installer v$Version ===" -ForegroundColor Cyan
 Write-Host ""
