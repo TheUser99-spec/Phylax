@@ -1,0 +1,65 @@
+<section class="section" id="why-agentguard">
+  <div class="site-shell">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <div>
+        <p class="section-kicker">Why AgentGuard</p>
+        <h2 class="section-title">Why AgentGuard?</h2>
+        <p class="section-copy">
+          AI agents like Claude Code, Cursor, and OpenCode have full filesystem access. AgentGuard puts a real OS-level boundary between them and your secrets.
+        </p>
+      </div>
+    </div>
+
+    <div class="why-grid" data-reveal>
+      <div class="why-card">
+        <div class="why-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+        </div>
+        <h3>100% Local</h3>
+        <p>No account, no cloud, no telemetry. Everything stays on your machine. Audit logs in local SQLite. Works fully offline.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <h3>Multi-Agent Detection</h3>
+        <p>Recognizes Claude, Cursor, OpenCode, Copilot, Windsurf, Aider, and more. Detects agents by process name, environment variables, and child inheritance.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>OS-level Enforcement</h3>
+        <p>Applies real Windows ACLs (DENY ACEs + Mandatory Integrity Control). The kernel itself returns ACCESS_DENIED - the agent never touches the file.</p>
+      </div>
+    </div>
+
+    <div class="coverage-note" data-reveal>
+      <span>Anti-bypass protection</span>
+      <p>AgentGuard applies three layers of Windows security to every denied file: DENY ACEs for read/write/delete, WRITE_DAC protection for ACL modification, and Mandatory Integrity Control to stop privilege bypass.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(
+      '#why-agentguard [data-reveal] > *',
+      { opacity: 0, y: 32 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', stagger: 0.08, scrollTrigger: { trigger: '#why-agentguard', start: 'top 74%' } }
+    );
+  }
+</script>

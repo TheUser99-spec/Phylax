@@ -1,0 +1,70 @@
+<section class="hero-shell" id="top">
+  <nav class="site-nav" aria-label="Primary navigation">
+    <a class="brand-mark" href="#top" aria-label="AgentGuard home">
+      <span>AgentGuard</span>
+      <span class="brand-dot" aria-hidden="true"></span>
+    </a>
+    <div class="nav-links">
+      <a href="#top">Home</a>
+      <a href="/docs">Docs</a>
+      <a href="/development-path">Development Path</a>
+    </div>
+  </nav>
+
+  <div class="site-shell hero-layout">
+    <div class="hero-copy">
+      <p class="eyebrow" data-hero-reveal>Windows security layer for AI coding agents</p>
+      <h1 data-hero-reveal>AgentGuard</h1>
+      <p class="hero-statement" data-hero-reveal>
+        AI coding tools can make mistakes.<br/>AgentGuard stops them before they touch your private files.
+      </p>
+      <p class="hero-body" data-hero-reveal>
+        OS-level protection that blocks dangerous file access before the agent ever touches your secrets. 100% local, no accounts, no cloud, no telemetry.
+      </p>
+      <div class="btn-row" data-hero-reveal>
+        <a class="button button-primary" href="#install">Install now</a>
+        <a class="button button-secondary" href="https://github.com/TheUser99-spec/AgentGuard" target="_blank" rel="noreferrer">View on GitHub</a>
+      </div>
+    </div>
+
+    <figure class="hero-stage" data-hero-reveal>
+      <img src="/tui-demo.png" alt="AgentGuard terminal dashboard showing a live protected workspace" />
+    </figure>
+  </div>
+
+  <div class="scroll-cue" aria-hidden="true">See how it works</div>
+</section>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(
+      '[data-hero-reveal]',
+      { opacity: 0, y: 32 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power3.out',
+        stagger: 0.08,
+        delay: 0.1,
+      }
+    );
+
+    gsap.to('.hero-stage', {
+      scrollTrigger: {
+        trigger: '.hero-shell',
+        start: 'top top',
+        end: 'bottom top',
+        scrub: true,
+      },
+      y: -24,
+      transformOrigin: '50% 50%',
+      ease: 'none',
+    });
+  }
+</script>

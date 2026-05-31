@@ -1,0 +1,53 @@
+<section class="section architecture" id="how-it-works">
+  <div class="site-shell">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <div>
+        <p class="section-kicker">How it works</p>
+        <h2 class="section-title">How AgentGuard works.</h2>
+        <p class="section-copy">
+          Three steps, all local. No cloud proxy, no API keys, no network required.
+        </p>
+      </div>
+    </div>
+
+    <div class="flow-simple" aria-label="How AgentGuard works in 3 steps" data-reveal>
+      <div class="flow-step-simple">
+        <div class="flow-num">1</div>
+        <h3>Detect</h3>
+        <p>Identifies AI agent processes by image name, environment variables, and command-line inspection. Child processes inherit the agent label automatically.</p>
+      </div>
+      <div class="flow-step-simple">
+        <div class="flow-num">2</div>
+        <h3>Decide</h3>
+        <p>Checks your <code>agentguard.toml</code> rules against the file path and operation. Resolves through priority-ordered buckets: deny always wins over everything else.</p>
+      </div>
+      <div class="flow-step-simple">
+        <div class="flow-num">3</div>
+        <h3>Block or Allow</h3>
+        <p>Applies real Windows ACLs to the filesystem. The OS kernel enforces the decision - denied files are locked with DENY ACEs and Mandatory Integrity Control labels.</p>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:36px">
+      <a class="button button-secondary" href="/docs"> target="_blank" rel="noreferrer">
+        See full architecture &rarr; Docs
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(
+      '#how-it-works [data-reveal] > *',
+      { opacity: 0, y: 32 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', stagger: 0.08, scrollTrigger: { trigger: '#how-it-works', start: 'top 74%' } }
+    );
+  }
+</script>

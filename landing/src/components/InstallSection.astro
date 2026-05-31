@@ -1,0 +1,106 @@
+<section class="section install-section" id="install">
+  <div class="site-shell install-panel">
+    <div class="section-header" style="margin-bottom:36px;text-align:left">
+      <span class="section-number">05</span>
+      <div>
+        <p class="section-kicker">Install</p>
+        <h2 class="section-title">Install in seconds.</h2>
+        <p class="section-copy">
+          One command. No accounts, no cloud, no telemetry. The daemon runs invisibly in the background.
+        </p>
+      </div>
+    </div>
+
+    <div class="terminal-block" data-reveal>
+      <div class="terminal-bar">
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-title">PowerShell</span>
+        <button class="terminal-copy" type="button" data-copy-trigger aria-label="Copy install command">Copy</button>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-prompt" data-copy-trigger>
+          <span class="prompt-sign">PS&gt;</span>
+          <span class="prompt-cmd">irm https://raw.githubusercontent.com/TheUser99-spec/AgentGuard/main/install.ps1 | iex</span>
+        </div>
+      </div>
+      <span class="copy-toast" data-copy-toast aria-live="polite">Copied</span>
+    </div>
+
+    <div class="quick-cmds" data-reveal>
+      <div class="quick-cmd">
+        <code>agentguard init</code>
+        <span>Creates agentguard.toml and starts the daemon</span>
+      </div>
+      <div class="quick-cmd">
+        <code>agentguard run</code>
+        <span>Daemon + live terminal dashboard (60fps)</span>
+      </div>
+      <div class="quick-cmd">
+        <code>agentguard stop</code>
+        <span>Stops daemon and releases file locks</span>
+      </div>
+      <div class="quick-cmd">
+        <code>agentguard status</code>
+        <span>Live view: projects, agents, events, blocks</span>
+      </div>
+    </div>
+
+    <div class="install-badges" data-reveal>
+      <span>Runs locally</span>
+      <span>No login</span>
+      <span>No cloud</span>
+      <span>No telemetry</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const command = 'irm https://raw.githubusercontent.com/TheUser99-spec/AgentGuard/main/install.ps1 | iex';
+  const triggers = document.querySelectorAll('[data-copy-trigger]');
+  const toast = document.querySelector('[data-copy-toast]');
+
+  async function handleCopy() {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(command);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = command;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+      }
+
+      toast?.classList.add('visible');
+      setTimeout(() => toast?.classList.remove('visible'), 1600);
+    } catch {
+      toast.textContent = 'Select & copy';
+      toast?.classList.add('visible');
+      setTimeout(() => {
+        toast.textContent = 'Copied';
+        toast?.classList.remove('visible');
+      }, 1600);
+    }
+  }
+
+  triggers.forEach((el) => el.addEventListener('click', handleCopy));
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(
+      '#install [data-reveal]',
+      { opacity: 0, y: 24 },
+      { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out', stagger: 0.08, scrollTrigger: { trigger: '#install', start: 'top 76%' } }
+    );
+  }
+</script>

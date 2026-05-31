@@ -1,0 +1,119 @@
+---
+import '../styles/global.css';
+import '../styles/experience.css';
+
+const {
+  title = 'AgentGuard - OS-level safety for AI coding agents',
+  description = 'AgentGuard is a Windows security layer that stops AI coding agents from reading, writing, or deleting files outside your rules.',
+  image = '/og-image.png',
+  canonical = '',
+  structuredData = '',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f7f5ee" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="author" content="AgentGuard" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonical || Astro.url} />
+    <link rel="sitemap" href="/sitemap.xml" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AgentGuard" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical || Astro.url} />
+    <meta property="og:image" content={new URL(image, Astro.url).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(image, Astro.url).href} />
+
+    <!-- Structured Data -->
+    {structuredData && <script type="application/ld+json" set:html={structuredData}></script>}
+  </head>
+  <body>
+    <div class="scroll-progress" aria-hidden="true"><span></span></div>
+    <slot />
+  </body>
+</html>
+
+<script>
+  import Lenis from 'lenis';
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.documentElement.classList.add('js-ready');
+
+  const progressBar = document.querySelector('.scroll-progress span');
+  const navLinks = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
+  const sections = navLinks
+    .map((link) => document.querySelector(link.getAttribute('href')))
+    .filter(Boolean);
+
+  function updateProgress() {
+    const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = scrollable > 0 ? window.scrollY / scrollable : 0;
+    progressBar?.style.setProperty('transform', `scaleX(${Math.min(1, Math.max(0, progress))})`);
+  }
+
+  function updateActiveNav() {
+    const offset = window.scrollY + window.innerHeight * 0.32;
+    let activeId = '';
+
+    sections.forEach((section) => {
+      if (section.offsetTop <= offset) activeId = section.id;
+    });
+
+    navLinks.forEach((link) => {
+      link.classList.toggle('is-active', Boolean(activeId) && link.getAttribute('href') === `#${activeId}`);
+    });
+  }
+
+  function updatePageChrome() {
+    updateProgress();
+    updateActiveNav();
+  }
+
+  updatePageChrome();
+  window.addEventListener('scroll', () => window.requestAnimationFrame(updatePageChrome), { passive: true });
+
+  if (!reduceMotion) {
+    const lenis = new Lenis({
+      duration: 1.05,
+      lerp: 0.08,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+    });
+
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  document.addEventListener('astro:after-swap', () => {
+    ScrollTrigger.refresh();
+  });
+</script>

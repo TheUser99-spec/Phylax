@@ -1,0 +1,148 @@
+---
+const profiles = [
+  {
+    key: 'recommended',
+    label: 'Recommended',
+    tag: 'Best first run',
+    summary: 'Protects secrets and critical files. Source edits are fast. Lockfile changes ask for confirmation.',
+    capabilities: 'Blocks .env, .pem, .key. Allows src/** and tests/**. Prompts for migrations and lockfiles.',
+    code: `[project]
+name = "my-agentguard-project"
+default = "conservative"
+
+[deny]
+files = [".env", ".env.*", "secrets/**", "*.pem", "*.key", "agentguard.toml"]
+
+[ask]
+files = ["Cargo.lock", "package-lock.json", "migrations/**"]
+
+[write]
+files = ["src/**", "tests/**", "docs/**"]
+
+[read]
+files = ["README.md", "docs/**"]`,
+  },
+  {
+    key: 'strict',
+    label: 'Strict',
+    tag: 'Maximum control',
+    summary: 'Maximum security. Every source edit and lockfile change requires explicit approval.',
+    capabilities: 'Denies .env, .pem, .key, .p12, .pfx, secrets/**. Asks for every source edit. Read-only by default.',
+    code: `[project]
+name = "agentguard-strict"
+default = "conservative"
+
+[deny]
+files = [".env", ".env.*", "secrets/**", "keys/**", "*.pem", "*.key", "*.p12", "agentguard.toml"]
+
+[ask]
+files = ["src/**", "tests/**", "Cargo.lock", "package-lock.json", "migrations/**"]
+
+[read]
+files = ["README.md", "docs/**", "src/**", "tests/**"]`,
+  },
+  {
+    key: 'fast',
+    label: 'Fast & Flexible',
+    tag: 'Low friction',
+    summary: 'Lets agents edit freely. Only secrets and the manifest are protected.',
+    capabilities: 'Blocks .env, .pem, .key, agentguard.toml. Everything else is writable. No prompts for normal edits.',
+    code: `[project]
+name = "agentguard-fast"
+default = "conservative"
+
+[deny]
+files = [".env", ".env.*", "secrets/**", "*.pem", "*.key", "agentguard.toml"]
+
+[write]
+files = ["src/**", "tests/**", "docs/**", "examples/**", "Cargo.lock", "package-lock.json"]
+
+[read]
+files = ["README.md", "docs/**", "src/**", "tests/**", "examples/**"]`,
+  },
+];
+
+const buckets = [
+  { name: 'deny', desc: 'Complete block', color: 'red' },
+  { name: 'ask', desc: 'User approves', color: 'amber' },
+  { name: 'full', desc: 'Unrestricted', color: 'green' },
+  { name: 'delete', desc: 'Read + Delete', color: 'blue' },
+  { name: 'write', desc: 'Read + Write', color: 'blue' },
+  { name: 'read', desc: 'Read only', color: 'blue' },
+];
+---
+
+<section class="section" id="policies">
+  <div class="site-shell">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <div>
+        <p class="section-kicker">Policies</p>
+        <h2 class="section-title">Choose your protection level.</h2>
+        <p class="section-copy">
+          AgentGuard uses six permission buckets ordered by priority. <strong>Deny always wins.</strong> Start with a preset, then customize via <code>agentguard.toml</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="priority-chain" data-reveal aria-label="Permission priority chain">
+      <span class="priority-label">Priority</span>
+      {buckets.map((bucket, i) => (
+        <>
+          <div class={`priority-bucket bucket-${bucket.color}`}>
+            <strong>{bucket.name}</strong>
+            <span>{bucket.desc}</span>
+          </div>
+          {i < buckets.length - 1 && <span class="priority-arrow">&rsaquo;</span>}
+        </>
+      ))}
+    </div>
+
+    <p class="priority-defaults" data-reveal>
+      <span>Conservative default</span>
+      When no rule matches: read = Allow, write = Ask, delete = Deny.
+    </p>
+
+    <div class="policy-cards" data-reveal>
+      {profiles.map((profile, i) => (
+        <div class={`policy-card ${i === 0 ? 'recommended' : ''}`}>
+          {i === 0 && <span class="policy-tag">Recommended</span>}
+          <span class="policy-preset-tag">{profile.tag}</span>
+          <h3>{profile.label}</h3>
+          <p>{profile.summary}</p>
+          <p class="policy-detail">{profile.capabilities}</p>
+          <button class="policy-toggle" type="button" data-toggle={profile.key}>
+            View config &darr;
+          </button>
+          <pre class="policy-code" data-code={profile.key}><code>{profile.code}</code></pre>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  document.querySelectorAll('[data-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-toggle');
+      const block = document.querySelector(`[data-code="${key}"]`);
+      if (block) {
+        const visible = block.classList.toggle('visible');
+        btn.textContent = visible ? 'Hide config \u2191' : 'View config \u2193';
+      }
+    });
+  });
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(
+      '#policies [data-reveal]',
+      { opacity: 0, y: 28 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', stagger: 0.06, scrollTrigger: { trigger: '#policies', start: 'top 74%' } }
+    );
+  }
+</script>

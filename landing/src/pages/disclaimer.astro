@@ -1,0 +1,99 @@
+---
+import Base from '../layouts/Base.astro';
+
+const title = 'AgentGuard Disclaimer';
+const description = 'AgentGuard comes with no warranty. Read the full disclaimer about liability, security limitations, and user responsibility.';
+---
+
+<Base title={title} description={description}>
+  <main>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a class="brand-mark" href="/" aria-label="AgentGuard home">
+        <span>AgentGuard</span>
+        <span class="brand-dot" aria-hidden="true"></span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs">Docs</a>
+        <a href="/development-path">Development Path</a>
+      </div>
+    </nav>
+
+    <section class="section" style="padding-top:100px">
+      <div class="site-shell docs-content">
+        <div class="docs-header">
+          <p class="section-kicker">Legal</p>
+          <h1 class="section-title" style="font-size:clamp(32px,4vw,44px)">Disclaimer</h1>
+          <p class="section-copy">Important information about security, liability, and user responsibility.</p>
+        </div>
+
+        <div class="docs-note docs-note--warn" style="margin-bottom:28px">
+          <strong>No warranty</strong>
+          <p>AgentGuard is provided "as is", without any warranties of any kind. This software does <strong>NOT guarantee</strong> security, data protection, or prevention of unauthorized access.</p>
+        </div>
+
+        <h2 class="docs-h2" style="border-top:0;padding-top:0">Your Responsibility</h2>
+
+        <p class="docs-p">You are solely responsible for:</p>
+
+        <ul style="font-size:15px;color:var(--muted);line-height:1.8;margin-bottom:28px;padding-left:20px">
+          <li>Evaluating the risks of running AI agents on your machine</li>
+          <li>Verifying that AgentGuard behaves correctly in your environment</li>
+          <li>Configuring your <code>agentguard.toml</code> rules appropriately</li>
+          <li>Understanding the Phase 1 limitations (see <a href="/development-path" style="color:var(--blue)">Development Path</a>)</li>
+          <li>Backing up your data before using any security software</li>
+        </ul>
+
+        <h2 class="docs-h2">Limitation of Liability</h2>
+
+        <p class="docs-p">The authors and contributors are <strong>not liable</strong> for:</p>
+
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:28px">
+          <div class="docs-note"><p>Data loss</p></div>
+          <div class="docs-note"><p>Security incidents</p></div>
+          <div class="docs-note"><p>System damage</p></div>
+          <div class="docs-note"><p>Misconfigurations</p></div>
+          <div class="docs-note"><p>Legal consequences</p></div>
+          <div class="docs-note"><p>Consequential damages</p></div>
+        </div>
+
+        <p class="docs-p">This includes direct, indirect, incidental, or consequential damages resulting from the use, misuse, or malfunction of this software. This applies regardless of legal theory - whether in contract, tort (including negligence), or otherwise.</p>
+
+        <h2 class="docs-h2">Jurisdiction</h2>
+
+        <p class="docs-p">This disclaimer is designed to be enforceable in:</p>
+
+        <div class="platform-grid" style="margin-bottom:28px">
+          <div class="platform-card">
+            <strong>United States</strong>
+            <p>Complies with U.S. software liability standards. "As-is" disclaimer and limitation of liability are standard and enforceable under U.S. law.</p>
+          </div>
+          <div class="platform-card">
+            <strong>European Union</strong>
+            <p>Designed to comply with EU consumer protection directives. The explicit disclaimer of fitness for purpose aligns with EU software regulations.</p>
+          </div>
+        </div>
+
+        <div class="docs-note">
+          <strong>Acceptance</strong>
+          <p>By using AgentGuard, you agree that you assume <strong>all responsibility and all risks</strong>. If you do not agree, do not use the software.</p>
+        </div>
+
+        <p class="docs-p" style="margin-top:28px;text-align:center">
+          See also: <a href="/license" style="color:var(--blue);text-decoration:underline">Apache 2.0 License</a>
+        </p>
+      </div>
+    </section>
+
+    <footer class="closer">
+      <div class="site-shell closer-grid">
+        <div class="closer-links">
+          <a href="https://github.com/TheUser99-spec/AgentGuard" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="/docs">Docs</a>
+          <a href="/development-path">Development Path</a>
+          <a href="/license">License</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+</Base>
