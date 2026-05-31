@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.astro/
+.astro-*.pid
+.astro-*.log
+.astro-*.err.log

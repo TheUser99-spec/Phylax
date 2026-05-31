@@ -138,6 +138,19 @@ Test listing counts (`cargo test -p <crate> -- --list`):
 | agentguard-tui | 0 |
 | agentguard-mascot | 1 |
 
+## Landing page (`landing/`)
+
+The landing page is an Astro 4 static site in `landing/`. It deploys to GitHub Pages via `.github/workflows/deploy-landing.yml`.
+
+**Stack:** Astro 4 + Tailwind CSS 3 + GSAP + Lenis smooth scroll.
+
+**Key rules:**
+- Do NOT commit `node_modules/`, `dist/`, or `.astro/` (see `landing/.gitignore`)
+- All internal links must use `/AgentGuard/` prefix for GitHub Pages
+- Build with `npm run build` from `landing/`
+
+## Verified status (as tested on 2026-05-29)
+
 Execution notes from this environment:
 - `cargo test --workspace` is currently not fully green in this shell context.
 - `agentguard-cli` e2e tests fail when daemon pipe `\\.\pipe\agentguard` is not running.
