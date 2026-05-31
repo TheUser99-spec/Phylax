@@ -2,7 +2,7 @@
 
 ![Stars](https://img.shields.io/github/stars/TheUser99-spec/AgentGuard?style=for-the-badge&color=f2c94c)
 ![Version](https://img.shields.io/github/v/release/TheUser99-spec/AgentGuard?style=for-the-badge&color=6cdda3)
-![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=for-the-badge)
 
 </div>
 
@@ -162,6 +162,16 @@ cargo build --workspace --release
 | [Detection & enforcement](docs/05-detection-enforcement.md) | Process classification |
 | [IPC & daemon/CLI](docs/06-ipc-daemon-cli.md) | Protocol + lifecycle |
 | [ADR index](docs/adr/README.md) | Architecture decisions |
+
+---
+
+## ⚖️ License
+
+AgentGuard is open-source under the **Apache 2.0 License**.
+See the [LICENSE](LICENSE) file for full terms.
+
+**Important:** AgentGuard comes with **no warranty**.
+See [DISCLAIMER.md](DISCLAIMER.md) for details about liability and security limitations.
 
 ---
 
