@@ -1,11 +1,11 @@
 # 03 — Manifest & Policy Engine (`agentguard-manifest` + `agentguard-policy`)
 
-## agentguard.toml Specification
+## phylax.toml Specification
 
 ### Full Example
 
 ```toml
-# agentguard.toml — project root
+# phylax.toml — project root
 
 [project]
 name    = "my-app"
@@ -84,7 +84,7 @@ recognized as path separators.
 
 ### Discovery
 
-`find_manifest(start_path)` walks up the directory tree looking for `agentguard.toml`.
+`find_manifest(start_path)` walks up the directory tree looking for `phylax.toml`.
 Returns the first one found, or `ManifestNotFound` error.
 
 ## CompiledManifest

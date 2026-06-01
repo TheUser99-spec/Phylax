@@ -3,16 +3,16 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub fn pipe_name() -> String {
-    if let Ok(name) = std::env::var("AGENTGUARD_IPC_PIPE") {
+    if let Ok(name) = std::env::var("PHYLAX_IPC_PIPE") {
         return name;
     }
     #[cfg(windows)]
     {
-        r"\\.\pipe\agentguard".to_string()
+        r"\\.\pipe\phylax".to_string()
     }
     #[cfg(not(windows))]
     {
-        "/tmp/agentguard.sock".to_string()
+        "/tmp/phylax.sock".to_string()
     }
 }
 

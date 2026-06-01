@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use crate::parser::ProjectManifest;
 
-/// Manifest compilado: los globs ya estan convertidos a GlobSets
-/// para matching O(1). Listo para usar en el hot path.
+/// Compiled manifest: globs are already converted to GlobSets
+/// for O(1) matching. Ready to use in the hot path.
 #[derive(Debug, Clone)]
 pub struct CompiledManifest {
     pub workspace_root: PathBuf,
@@ -26,8 +26,8 @@ pub struct CompiledManifest {
 }
 
 impl CompiledManifest {
-    /// Compila un ProjectManifest a GlobSets.
-    /// `workspace_root` es la carpeta donde esta el agentguard.toml.
+    /// Compiles a ProjectManifest into GlobSets.
+    /// `workspace_root` is the directory where phylax.toml lives.
     pub fn compile(manifest: &ProjectManifest, workspace_root: PathBuf) -> GuardResult<Self> {
         Ok(Self {
             workspace_root,
@@ -46,15 +46,15 @@ impl CompiledManifest {
         })
     }
 
-    /// Evalua si una operacion sobre un path esta permitida.
+    /// Evaluates whether an operation on a path is allowed.
     ///
-    /// **CONTRATO DE SEGURIDAD:** `abs_path` debe ser un path absoluto y
-    /// canonicalizado (`std::fs::canonicalize`) antes de llamar a este metodo.
-    /// De lo contrario, un symlink puede hacer bypass de las reglas
-    /// (ver AGENTS.md — CVE-2025-59829).
+    /// **SECURITY CONTRACT:** `abs_path` must be an absolute, canonicalized path
+    /// (`std::fs::canonicalize`) before calling this method.
+    /// Otherwise, a symlink can bypass the rules
+    /// (see AGENTS.md — CVE-2025-59829).
     ///
-    /// Para Global/Agent manifests (workspace_root vacio), los patrones
-    /// se evaluan contra el path absoluto completo (via prefix `**/`).
+    /// For Global/Agent manifests (empty workspace_root), patterns
+    /// are evaluated against the full absolute path (via `**/` prefix).
     pub fn evaluate(&self, abs_path: &Path, op: &FileOp) -> (PolicyDecision, PolicySource) {
         debug_assert!(
             abs_path.is_absolute() || abs_path.has_root(),

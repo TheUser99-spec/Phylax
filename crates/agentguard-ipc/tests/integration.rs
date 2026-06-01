@@ -17,11 +17,11 @@ fn unique_pipe() -> String {
     let id = PIPE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     #[cfg(windows)]
     {
-        format!("\\\\.\\pipe\\agentguard-test-{id}")
+        format!("\\\\.\\pipe\\phylax-test-{id}")
     }
     #[cfg(not(windows))]
     {
-        format!("/tmp/agentguard-test-{id}.sock")
+        format!("/tmp/phylax-test-{id}.sock")
     }
 }
 

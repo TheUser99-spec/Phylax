@@ -1,4 +1,4 @@
-//! AgentGuard TUI — thin binary entry point.
+//! Phylax TUI — thin binary entry point (crate name agentguard-tui retained for compat).
 //! Delegates to the library `agentguard_tui::run_tui()`.
 
 #[tokio::main]

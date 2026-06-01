@@ -1,4 +1,4 @@
-//! AgentGuard Daemon — thin binary entry point.
+//! Phylax Daemon — thin binary entry point (crate name agentguard-daemon retained for compat).
 //! Delegates to the library `agentguard_daemon::run_daemon()`.
 
 #[tokio::main]

@@ -1,6 +1,6 @@
-//! Parser y validador del fichero `agentguard.toml`.
-//! Convierte el TOML en un `ProjectManifest` y lo compila
-//! a `CompiledManifest` con GlobSets listos para matching O(1).
+//! Parser and validator for `phylax.toml`.
+//! Converts TOML into a `ProjectManifest` and compiles it
+//! into a `CompiledManifest` with GlobSets ready for O(1) matching.
 
 mod compiled;
 mod discovery;

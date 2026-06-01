@@ -55,7 +55,7 @@ pub async fn list(image: Option<String>) -> GuardResult<()> {
                     println!("  No agent rules for '{img}'.");
                 } else {
                     println!("  No per-agent rules defined.");
-                    println!("  Add one: agentguard agent add cursor.exe deny \"*.env\"");
+                    println!("  Add one: phylax agent add cursor.exe deny \"*.env\"");
                 }
             } else {
                 let label = if let Some(ref img) = image {

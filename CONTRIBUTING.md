@@ -119,7 +119,7 @@ Global rules (system-wide)  ← highest
   ↓
 Agent rules (per-image)     ← per executable
   ↓
-Project rules (per-workspace) ← agentguard.toml
+Project rules (per-workspace) ← phylax.toml
   ↓
 Default (conservative/unrestricted)
 ```

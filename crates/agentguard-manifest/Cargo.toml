@@ -1,6 +1,6 @@
 [package]
 name        = "agentguard-manifest"
-description = "Parser de agentguard.toml. Validacion y compilacion a GlobSets."
+description = "Parser de phylax.toml. Validacion y compilacion a GlobSets."
 version.workspace = true
 edition.workspace = true
 

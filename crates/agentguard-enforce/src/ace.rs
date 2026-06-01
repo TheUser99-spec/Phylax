@@ -144,7 +144,7 @@ mod win_api {
         if r != 0 { return Err(GuardError::EnforcementFailed { path: path.display().to_string(), reason: format!("GetNamedSecurityInfoW: {r}") }); }
 
         let sid = everyone_sid_ptr()?;
-        let cleaned_dacl = acl_without_agentguard_deny(p_dacl, sid.as_psid(), (masks.len() * std::mem::size_of::<EXPLICIT_ACCESS_W>()) as u32)?;
+        let cleaned_dacl = acl_without_phylax_deny(p_dacl, sid.as_psid(), (masks.len() * std::mem::size_of::<EXPLICIT_ACCESS_W>()) as u32)?;
 
         let mut entries: Vec<EXPLICIT_ACCESS_W> = masks.iter().map(|&mask| EXPLICIT_ACCESS_W {
             grfAccessPermissions: mask, grfAccessMode: DENY_ACCESS, grfInheritance: NO_INHERITANCE, Trustee: trustee_for_sid(sid.as_psid()),
@@ -188,7 +188,7 @@ mod win_api {
             });
         }
 
-        let cleaned_dacl = acl_without_agentguard_deny(p_dacl, sid.as_psid(), 0)?;
+        let cleaned_dacl = acl_without_phylax_deny(p_dacl, sid.as_psid(), 0)?;
 
         let r = unsafe {
             SetNamedSecurityInfoW(
@@ -267,13 +267,13 @@ mod win_api {
         }
     }
 
-    fn acl_without_agentguard_deny(
+    fn acl_without_phylax_deny(
         acl: *const ACL,
         sid: PSID,
         extra_bytes: u32,
     ) -> GuardResult<Vec<u8>> {
         copy_acl_without(acl, extra_bytes, |ace| {
-            is_agentguard_deny_ace(ace, sid).unwrap_or(false)
+            is_phylax_deny_ace(ace, sid).unwrap_or(false)
         })
     }
 
@@ -376,7 +376,7 @@ mod win_api {
         Ok(false)
     }
 
-    fn is_agentguard_deny_ace(ace: *const ACE_HEADER, sid: PSID) -> GuardResult<bool> {
+    fn is_phylax_deny_ace(ace: *const ACE_HEADER, sid: PSID) -> GuardResult<bool> {
         access_denied_mask_for_sid(ace, sid).map(|m| m.is_some())
     }
 
@@ -401,7 +401,7 @@ mod dev {
 
     fn marker_path(path: &Path) -> std::path::PathBuf {
         let name = format!(
-            ".agentguard-deny-{}",
+            ".phylax-deny-{}",
             path.file_name().unwrap_or_default().to_string_lossy()
         );
         path.parent().unwrap_or(path).join(name)

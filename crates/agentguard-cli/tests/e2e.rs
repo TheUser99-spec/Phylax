@@ -1,6 +1,6 @@
-//! End-to-end integration tests against a running AgentGuard daemon.
+//! End-to-end integration tests against a running Phylax daemon.
 //!
-//! REQUIRES: `agentguard-daemon` running with `\\.\pipe\agentguard` available.
+//! REQUIRES: daemon running with `\\.\pipe\phylax` available.
 //!
 //! Usage:
 //!   1. Start daemon: cargo run -p agentguard-daemon

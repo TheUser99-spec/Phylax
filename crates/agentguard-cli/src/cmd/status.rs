@@ -11,10 +11,10 @@ pub async fn run() -> GuardResult<()> {
     println!();
 
     if status.projects.is_empty() {
-        println!("  Sin proyectos registrados.");
-        println!("  Ejecuta agentguard init en un proyecto.");
+        println!("  No projects registered.");
+        println!("  Run phylax init in a project.");
     } else {
-        println!("Proyectos vigilados ({}):", status.projects.len());
+        println!("Watched projects ({}):", status.projects.len());
         for p in &status.projects {
             println!(
                 "  + {}  [deny:{} ask:{} write:{} read:{}]",
@@ -30,9 +30,9 @@ pub async fn run() -> GuardResult<()> {
     println!();
 
     if status.active_agents.is_empty() {
-        println!("  Sin agentes activos en este momento.");
+        println!("  No active agents at this time.");
     } else {
-        println!("Agentes activos ({}):", status.active_agents.len());
+        println!("Active agents ({}):", status.active_agents.len());
         for a in &status.active_agents {
             println!(
                 "  * {} (PID {})  {:?}  {}",

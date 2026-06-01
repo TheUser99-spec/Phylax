@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 
 use crate::parser::{BucketSpec, ProjectManifest};
 
-/// Busca `phylax.toml` desde `start` hacia arriba en el arbol de directorios.
+/// Searches for `phylax.toml` starting from `start` and walking up the directory tree.
 ///
-/// Devuelve la ruta al fichero si se encuentra, o `ManifestNotFound` si no.
+/// Returns the path to the file if found, or `ManifestNotFound` otherwise.
 pub fn find_manifest(start: &Path) -> GuardResult<PathBuf> {
     let mut current = if start.is_file() {
         start.parent().unwrap_or(start).to_path_buf()
@@ -55,7 +55,7 @@ impl Language {
     }
 }
 
-/// S1: Detecta el lenguaje del proyecto mirando ficheros de configuracion.
+/// S1: Detects the project language by looking at config files.
 pub fn detect_language(root: &Path) -> Language {
     if root.join("Cargo.toml").exists() {
         return Language::Rust;
@@ -78,7 +78,7 @@ pub fn detect_language(root: &Path) -> Language {
     Language::Unknown
 }
 
-/// S2: Detecta ficheros de secrets en el arbol del proyecto.
+/// S2: Detects secret files in the project tree.
 pub fn detect_secrets(root: &Path) -> Vec<String> {
     let mut patterns: Vec<String> = Vec::new();
     let sensitive_extensions = [".pem", ".key", ".p12", ".pfx", ".pkcs8", ".der"];
@@ -172,7 +172,7 @@ pub fn detect_secrets(root: &Path) -> Vec<String> {
     patterns
 }
 
-/// S3: Artefactos de build segun el lenguaje detectado.
+/// S3: Build artifacts based on the detected language.
 pub fn detect_build_artifacts(lang: Language) -> Vec<String> {
     let mut patterns = vec![
         // Generic — always safe to delete
@@ -216,7 +216,7 @@ pub fn detect_build_artifacts(lang: Language) -> Vec<String> {
     patterns
 }
 
-/// S4: Repositorios VCS — siempre en [deny].
+/// S4: VCS repositories — always in [deny].
 pub fn detect_vcs_patterns(root: &Path) -> Vec<String> {
     let mut patterns = Vec::new();
 
@@ -233,7 +233,7 @@ pub fn detect_vcs_patterns(root: &Path) -> Vec<String> {
     patterns
 }
 
-/// S5: Ficheros de IDE/Editor — solo lectura.
+/// S5: IDE/Editor files — read only.
 pub fn detect_editor_patterns(root: &Path) -> Vec<String> {
     let mut patterns = Vec::new();
 
@@ -270,7 +270,7 @@ pub fn detect_editor_patterns(root: &Path) -> Vec<String> {
     patterns
 }
 
-/// S7: Ficheros CI/CD — necesitan atencion, bucket [ask].
+/// S7: CI/CD files — need attention, bucket [ask].
 pub fn detect_ci_patterns(root: &Path) -> Vec<String> {
     let mut patterns = Vec::new();
 
@@ -321,8 +321,8 @@ pub fn detect_ci_patterns(root: &Path) -> Vec<String> {
     patterns
 }
 
-/// S6: Estructura del proyecto — que se puede escribir y que solo leer.
-/// Devuelve (write_patterns, read_patterns).
+/// S6: Project structure — what can be written and what can only be read.
+/// Returns (write_patterns, read_patterns).
 pub fn detect_project_structure(root: &Path, lang: Language) -> (Vec<String>, Vec<String>) {
     let mut write_patterns = Vec::new();
     let mut read_patterns = Vec::new();
@@ -409,7 +409,7 @@ pub fn detect_project_structure(root: &Path, lang: Language) -> (Vec<String>, Ve
     (write_patterns, read_patterns)
 }
 
-/// Orquesta las 7 capas y devuelve un ProjectManifest listo para escribir.
+/// Orchestrates the 7 layers and returns a ProjectManifest ready to write.
 pub fn auto_detect(root: &Path) -> ProjectManifest {
     let root = if root.is_file() {
         root.parent().unwrap_or(root)

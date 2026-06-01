@@ -5,7 +5,7 @@
 
 use agentguard_core::{GuardError, GuardResult};
 
-const REPO: &str = "TheUser99-spec/AgentGuard";
+const REPO: &str = "TheUser99-spec/AgentGuard"; // rename to TheUser99-spec/phylax when GitHub repo is migrated
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub async fn run(check_only: bool) -> GuardResult<()> {
@@ -24,7 +24,7 @@ pub async fn run(check_only: bool) -> GuardResult<()> {
 
     println!("+ Updating from v{CURRENT_VERSION} to v{latest}...");
     download_and_replace(&latest).await?;
-    println!("+ Update complete! Restart AgentGuard to use v{latest}.");
+    println!("+ Update complete! Restart Phylax to use v{latest}.");
     Ok(())
 }
 
@@ -96,7 +96,7 @@ async fn download_and_replace(version: &str) -> GuardResult<()> {
          timeout /t 2 /nobreak >nul\r\n\
          move /Y \"{new_exe_str}\" \"{}\" >nul 2>&1\r\n\
          if exist \"{new_daemon_str}\" move /Y \"{new_daemon_str}\" \"{}\" >nul 2>&1\r\n\
-         echo AgentGuard updated to v{version}\r\n\
+         echo Phylax updated to v{version}\r\n\
          del \"%~f0\"\r\n",
         exe_dest.display(),
         daemon_dest.display()

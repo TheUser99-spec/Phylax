@@ -292,8 +292,8 @@ mod tests {
         let name = c.pipe_name();
         assert!(!name.is_empty());
         #[cfg(windows)]
-        assert!(name.contains("agentguard"));
+        assert!(name.contains("phylax"));
         #[cfg(not(windows))]
-        assert!(name.contains("agentguard"));
+        assert!(name.contains("phylax"));
     }
 }

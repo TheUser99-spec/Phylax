@@ -81,7 +81,8 @@ impl Store {
             .map_err(|e| GuardError::Database(format!("mutex poisoned: {e}")))
     }
 
-    /// Default database path on Windows: %APPDATA%\AgentGuard\agentguard.db
+    /// Default database path on Windows: %APPDATA%\phylax\phylax.db
+    /// (formerly %APPDATA%\AgentGuard\agentguard.db — renamed for brand consistency)
     /// Falls back to %LOCALAPPDATA% → %USERPROFILE% → current directory.
     pub fn default_path() -> PathBuf {
         #[cfg(target_os = "windows")]

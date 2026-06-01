@@ -67,7 +67,7 @@ pub enum AgentLabel {
 ```rust
 pub enum PolicySource {
     Global,   // From global_rules table
-    Project,  // From agentguard.toml
+    Project,  // From phylax.toml
     Default,  // From default_mode
 }
 ```
@@ -158,7 +158,7 @@ All errors are typed and implement `thiserror::Error`.
 | `Migration { version, reason }` | Store | Migration failure |
 | `ManifestParse(String)` | Manifest | TOML parse error |
 | `InvalidGlob { pattern, reason }` | Manifest | Glob compilation error |
-| `ManifestNotFound { path }` | Manifest | agentguard.toml not found |
+| `ManifestNotFound { path }` | Manifest | phylax.toml not found |
 | `PolicyError(String)` | Policy | Evaluation error |
 | `IpcConnect(String)` | IPC | Connection failed |
 | `IpcSerialize(String)` | IPC | Serialization failed |

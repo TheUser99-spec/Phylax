@@ -1,7 +1,7 @@
-//! Aplicador de DENY ACEs via SetNamedSecurityInfo para containment a nivel filesystem.
+//! Applies DENY ACEs via SetNamedSecurityInfo for filesystem-level containment.
 //!
-//! Phase 1: DENY ACEs sobre archivos protegidos.
-//! ACE cleanup al morir el agente o al desregistrar el proyecto.
+//! Phase 1: DENY ACEs on protected files.
+//! ACE cleanup when the agent dies or the project is unregistered.
 
 #![allow(unsafe_code)]
 

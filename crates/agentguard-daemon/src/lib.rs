@@ -1,8 +1,8 @@
-//! AgentGuard Daemon library.
+//! Phylax Daemon library (crate name agentguard-daemon retained for backward compatibility).
 //!
-//! Orquesta: probe + policy + enforce + notify + audit.
-//! IPC server para CLI + watcher para hot-reload de agentguard.toml.
-//! File watcher para proteger archivos nuevos en workspaces.
+//! Orchestrates: probe + policy + enforce + notify + audit.
+//! IPC server for CLI + watcher for hot-reload of phylax.toml.
+//! File watcher to protect new files in workspaces.
 
 #![allow(unsafe_code)]
 
@@ -61,7 +61,7 @@ impl Drop for SingleInstanceGuard {
 
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// Run the AgentGuard daemon. Blocks until shutdown is requested.
+/// Run the Phylax daemon. Blocks until shutdown is requested.
 /// On Windows this acquires a singleton mutex to prevent double-start.
 pub async fn run_daemon() {
     #[cfg(windows)]

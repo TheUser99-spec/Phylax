@@ -26,7 +26,7 @@ pub async fn run(no_create: bool, allow_unhealthy: bool) -> GuardResult<()> {
 
         std::fs::write(&toml_path, content).map_err(agentguard_core::GuardError::Io)?;
         println!();
-        println!("+ Creado phylax.toml (auto-detected)");
+        println!("+ Created phylax.toml (auto-detected)");
     } else if toml_path.exists() {
         println!("- phylax.toml already exists, skipping creation");
     }
@@ -43,8 +43,8 @@ pub async fn run(no_create: bool, allow_unhealthy: bool) -> GuardResult<()> {
 
     IpcClient::new().register_project(cwd.clone()).await?;
 
-    println!("+ Proyecto registrado: {}", cwd.display());
-    println!("+ Phylax activo -- los agentes seran vigilados en este workspace");
+    println!("+ Project registered: {}", cwd.display());
+    println!("+ Phylax active -- agents will be monitored in this workspace");
     match IpcClient::new().verify_protection(cwd.clone()).await {
         Ok(report) => {
             if report.unhealthy_paths.is_empty() {
@@ -79,11 +79,11 @@ Use `phylax project verify` to inspect and fix, or re-run with `--allow-unhealth
         }
     }
     println!();
-    println!("  Edita phylax.toml para personalizar los permisos.");
-    println!("  El daemon recargara automaticamente cuando guardes cambios.");
+    println!("  Edit phylax.toml to customize permissions.");
+    println!("  The daemon will reload automatically when you save changes.");
     println!();
-    println!("  phylax status              -> ver estado");
-    println!("  phylax project check ...   -> dry-run de una operacion");
+    println!("  phylax status              -> view state");
+    println!("  phylax project check ...   -> dry-run an operation");
 
     Ok(())
 }

@@ -5,7 +5,7 @@
 ## Context
 
 AgentGuard must prevent AI agent processes from reading, writing, or deleting files
-that match deny rules in the project's `agentguard.toml`. Two enforcement mechanisms
+that match deny rules in the project's `phylax.toml`. Two enforcement mechanisms
 were considered for Phase 1:
 
 1. **DENY ACEs (Access Control Entries)** — Append `ACCESS_DENIED_ACE` entries to

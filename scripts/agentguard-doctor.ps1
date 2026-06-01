@@ -179,7 +179,7 @@ foreach ($t in $ifeoTargets) {
 }
 
 # 6) ACL policy checks
-$toml = Join-Path $Workspace "agentguard.toml"
+$toml = Join-Path $Workspace "phylax.toml"
 $envf = Join-Path $Workspace ".env"
 
 foreach ($f in @($toml, $envf)) {

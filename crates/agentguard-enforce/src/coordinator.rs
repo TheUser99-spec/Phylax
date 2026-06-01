@@ -205,7 +205,7 @@ files = ["docs/**"]
     }
 
     #[test]
-    fn collect_deny_paths_includes_agentguard_toml_when_denied() {
+    fn collect_deny_paths_includes_phylax_toml_when_denied() {
         let tmp = TempDir::new().unwrap();
         let root = std::fs::canonicalize(tmp.path()).unwrap();
         let root = strip_verbatim_prefix(root);

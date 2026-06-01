@@ -4,7 +4,7 @@
 
 This audit verifies effective protection of critical deny targets:
 
-- `agentguard.toml`
+- `phylax.toml`
 - `.env`
 - `.env.*`
 - `.git/**`
@@ -23,7 +23,7 @@ Initial behavior allowed practical gaps despite deny policy:
 
 1. Enforcement depended on restricted-token SID only in some paths.
 2. `Everyone DENY` was not default-on.
-3. `agentguard.toml` had special-case behavior that could weaken protection.
+3. `phylax.toml` had special-case behavior that could weaken protection.
 4. New deny files were not always protected immediately.
 5. Path collection skipped deep files and filtered folders like `.git`, causing deny misses.
 6. Validation tolerated critical deny omissions in TOML.
@@ -36,7 +36,7 @@ Initial behavior allowed practical gaps despite deny policy:
 
 Daemon now enforces mandatory deny patterns at runtime before compiling policy:
 
-- `agentguard.toml`
+- `phylax.toml`
 - `.env`
 - `.env.*`
 - `.git/**`

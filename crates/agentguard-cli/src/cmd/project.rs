@@ -9,9 +9,9 @@ pub async fn validate(path: PathBuf) -> GuardResult<()> {
     let result = client.validate_project(abs).await?;
 
     if result.valid {
-        println!("+ agentguard.toml valido");
+        println!("+ phylax.toml valid");
     } else {
-        println!("- agentguard.toml invalido");
+        println!("- phylax.toml invalid");
         for e in &result.errors {
             println!("  error: {e}");
         }
@@ -23,13 +23,13 @@ pub async fn validate(path: PathBuf) -> GuardResult<()> {
 
     let s = &result.summary;
     println!();
-    println!("  Resumen de politica:");
+    println!("  Policy summary:");
     println!("  default_mode : {}", s.default_mode);
-    println!("  [deny]       : {} patrones", s.deny_patterns);
-    println!("  [ask]        : {} patrones", s.ask_patterns);
-    println!("  [write]      : {} patrones", s.write_patterns);
-    println!("  [delete]     : {} patrones", s.delete_patterns);
-    println!("  [read]       : {} patrones", s.read_patterns);
+    println!("  [deny]       : {} patterns", s.deny_patterns);
+    println!("  [ask]        : {} patterns", s.ask_patterns);
+    println!("  [write]      : {} patterns", s.write_patterns);
+    println!("  [delete]     : {} patterns", s.delete_patterns);
+    println!("  [read]       : {} patterns", s.read_patterns);
 
     Ok(())
 }
@@ -62,7 +62,7 @@ pub async fn unregister(path: PathBuf) -> GuardResult<()> {
     let abs = resolve_existing_path(path);
 
     IpcClient::new().unregister_project(abs.clone()).await?;
-    println!("+ Proyecto eliminado de la vigilancia: {}", abs.display());
+    println!("+ Project removed from watch: {}", abs.display());
 
     Ok(())
 }

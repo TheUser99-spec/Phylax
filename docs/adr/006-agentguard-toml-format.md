@@ -1,12 +1,12 @@
-# ADR-006: agentguard.toml Format & Backward Compatibility
+# ADR-006: phylax.toml Format & Backward Compatibility
 
 **Status**: Accepted
 
 ## Context
 
-Every AgentGuard-protected project contains an `agentguard.toml` file that defines
+Every Phylax-protected project contains a `phylax.toml` file that defines
 which files AI agents can read, write, or delete. This file is:
-- Created by `agentguard init` (7-layer auto-detection)
+- Created by `phylax init` (7-layer auto-detection)
 - Edited manually by developers
 - Parsed by `agentguard-manifest` and compiled into GlobSets
 - Version-controlled alongside project source code
@@ -69,8 +69,8 @@ files = ["docs/**", "README.md"]
    after 2 major versions.
 4. **Never silently break**: `agentguard project validate` returns validation errors
    for invalid manifests, never silently ignores unknown or malformed fields.
-5. **Migration tool**: A future `agentguard migrate` command will automatically update
-   `agentguard.toml` from old formats to the current version.
+5. **Migration tool**: A future `phylax migrate` command will automatically update
+    `phylax.toml` from old formats to the current version.
 
 ## Consequences
 
@@ -89,7 +89,7 @@ files = ["docs/**", "README.md"]
 1. **YAML**: Rejected — too many footguns (Norway problem, `yes`/`no` as booleans,
    indentation-sensitive). YAML parsers are larger and slower than TOML parsers.
 2. **JSON**: Rejected — no comments means developers must document policy choices
-   elsewhere, breaking the self-documenting nature of `agentguard.toml`.
+   elsewhere, breaking the self-documenting nature of `phylax.toml`.
 3. **JSONC (JSON with Comments)**: Rejected — no standard Rust parser, VS Code-specific,
    not a universal format.
 4. **KDL (Cuddly Document Language)**: Rejected — too niche, no mature Rust ecosystem,

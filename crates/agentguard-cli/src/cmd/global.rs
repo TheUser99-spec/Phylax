@@ -46,7 +46,7 @@ pub async fn list() -> GuardResult<()> {
             let rules = data.rules;
             if rules.is_empty() {
                 println!("  No global rules defined.");
-                println!("  Add one: agentguard global add deny \"C:\\Users\\*\\.ssh\\**\"");
+                println!("  Add one: phylax global add deny \"C:\\Users\\*\\.ssh\\**\"");
             } else {
                 println!("Global rules ({}):", rules.len());
                 for r in &rules {

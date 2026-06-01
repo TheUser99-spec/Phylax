@@ -30,7 +30,7 @@ to the agent.
 ```
 crates/
 ├── agentguard-core/         # Base types, errors, zero deps
-├── agentguard-manifest/     # agentguard.toml parser + GlobSet compiler
+├── agentguard-manifest/     # phylax.toml parser + GlobSet compiler
 ├── agentguard-policy/       # CompiledPolicy: global > project > default
 ├── agentguard-store/        # SQLite: crud, migrations, thread-safe
 ├── agentguard-probe/        # SubjectClassifier (5 signals) + SessionTracker
@@ -71,7 +71,7 @@ Rules:
 ```
 User runs: agentguard init
   │
-  ├─ 1. CLI creates agentguard.toml (if missing)
+  ├─ 1. CLI creates phylax.toml (if missing)
   ├─ 2. CLI → IPC → daemon: RegisterProject
   ├─ 3. Daemon parses toml → CompiledManifest (GlobSets)
   ├─ 4. Daemon applies DENY ACEs to [deny] files (SetNamedSecurityInfoW)
@@ -85,7 +85,7 @@ Agent runs (e.g., claude.exe in project dir):
   ├─ 9. Windows kernel checks DACL → DENY Everyone → ACCESS_DENIED
   └─ 10. Agent cannot read .env
 
-User edits agentguard.toml:
+User edits phylax.toml:
   │
   ├─ 11. Watcher detects file change (< 1s)
   └─ 12. Daemon hot-reloads: recompiles GlobSets, re-applies ACEs

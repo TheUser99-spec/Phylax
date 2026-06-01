@@ -1,11 +1,11 @@
-//! ETW consumer + SubjectClassifier para deteccion de agentes de IA.
+//! ETW consumer + SubjectClassifier for AI agent detection.
 //!
-//! Senales de clasificacion:
-//!   S1: Variables de entorno conocidas (CLAUDE_CODE, ANTHROPIC_API_KEY...)
-//!   S2: Nombre de imagen exacto (claude.exe, cursor.exe, goose.exe...)
-//!   S3: node.exe con cmdline que menciona un agente (claude, cline...)
-//!   S4: Proceso sin sesion interactiva (session_id==0, sin window station)
-//!   S5: Herencia del padre (hijo de un agente -> Inherited)
+//! Classification signals:
+//!   S1: Known environment variables (CLAUDE_CODE, ANTHROPIC_API_KEY...)
+//!   S2: Exact image name (claude.exe, cursor.exe, goose.exe...)
+//!   S3: node.exe with cmdline mentioning an agent (claude, cline...)
+//!   S4: Process without interactive session (session_id==0, no window station)
+//!   S5: Parent inheritance (child of an agent -> Inherited)
 
 #![allow(unsafe_code)]
 

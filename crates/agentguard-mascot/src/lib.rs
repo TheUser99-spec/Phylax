@@ -1,4 +1,4 @@
-//! agentguard-mascot — Guardian Husky pixel-art dog for the terminal.
+//! Phylax mascot — Guardian Husky pixel-art dog for the terminal (crate name agentguard-mascot retained for compat).
 //!
 //! Architecture:
 //! - `DogSprite` — owns all animations (idle, walk, happy, sad, surprised)

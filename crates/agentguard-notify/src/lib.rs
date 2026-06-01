@@ -1,14 +1,14 @@
-//! Notificaciones para el bucket [ask].
+//! Notifications for the [ask] bucket.
 //!
-//! Flujo:
-//!   1. Agente intenta acceder a fichero en [ask]
-//!   2. Daemon llama a Notifier::ask_user_blocking()
-//!   3. Windows: MessageBoxW con MB_YESNO (Yes=AllowOnce, No=Deny)
-//!      Unix: prompt de terminal (y/n)
-//!   4. Sin respuesta / error -> Deny
+//! Flow:
+//!   1. Agent tries to access a file in [ask]
+//!   2. Daemon calls Notifier::ask_user_blocking()
+//!   3. Windows: MessageBoxW with MB_YESNO (Yes=AllowOnce, No=Deny)
+//!      Unix: terminal prompt (y/n)
+//!   4. No response / error -> Deny
 //!
-//! El caller (daemon) debe envolver en tokio::task::spawn_blocking
-//! + tokio::time::timeout para control de timeout.
+//! The caller (daemon) must wrap in tokio::task::spawn_blocking
+//! + tokio::time::timeout for timeout control.
 
 #![allow(unsafe_code)]
 

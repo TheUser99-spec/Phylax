@@ -4,7 +4,7 @@
 
 Protect critical deny targets from AI-agent access:
 
-- `agentguard.toml`
+- `phylax.toml`
 - `.env`, `.env.*`
 - `.git/**`
 - `**/*.key`, `**/*.pem`, `**/*.p12`, `**/*.pfx`

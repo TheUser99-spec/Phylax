@@ -1,6 +1,6 @@
-//! CompiledPolicy — integra reglas globales (DB) + reglas de proyecto (agentguard.toml).
+//! CompiledPolicy — integrates global rules (DB) + project rules (phylax.toml).
 //!
-//! La capa global SIEMPRE gana sobre la de proyecto.
+//! The global layer ALWAYS wins over the project layer.
 
 use std::path::Path;
 

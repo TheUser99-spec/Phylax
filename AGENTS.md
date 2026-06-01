@@ -15,7 +15,7 @@ Do not modify `driver/` unless explicitly requested.
 ```text
 crates/
   agentguard-core/      <- Base types and shared errors (no external deps)
-  agentguard-manifest/  <- agentguard.toml parser + compiled GlobSets + auto-discovery
+  agentguard-manifest/  <- phylax.toml parser + compiled GlobSets + auto-discovery
   agentguard-policy/    <- Decision engine (deny > ask > full > delete > write > read)
   agentguard-store/     <- SQLite access and schema ownership
   agentguard-probe/     <- Process polling + subject classification (Windows-focused)

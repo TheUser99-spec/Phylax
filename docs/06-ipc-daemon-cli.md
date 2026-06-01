@@ -32,11 +32,11 @@ let response: IpcResponse = protocol::recv(&mut reader).await?;
 |---------|--------|-------------|
 | `RegisterProject` | `path` | Register a workspace |
 | `UnregisterProject` | `path` | Remove workspace from watch |
-| `ValidateProject` | `path` | Validate agentguard.toml |
+| `ValidateProject` | `path` | Validate phylax.toml |
 | `CheckFileAccess` | `path, op` | Dry-run policy evaluation |
 | `GetStatus` | — | Get daemon status + stats |
 | `Shutdown` | — | Stop the daemon |
-| `ReloadPolicy` | `path` | Force reload of agentguard.toml |
+| `ReloadPolicy` | `path` | Force reload of phylax.toml |
 | `AskResponse` | `request_id, allowed, remember` | User response to ask prompt |
 | `AddGlobalRule` | `bucket, pattern` | Add system-wide rule |
 | `RemoveGlobalRule` | `id` | Remove system-wide rule |
@@ -183,7 +183,7 @@ pub fn handle(state: Arc<DaemonState>, req: IpcRequest) -> IpcResponse {
 ### Watcher (`watcher.rs`)
 
 **Windows**: `ReadDirectoryChangesW` on each registered workspace directory.
-When `agentguard.toml` is modified, triggers `DaemonState::reload_project()`.
+When `phylax.toml` is modified, triggers `DaemonState::reload_project()`.
 
 **Unix/dev**: File modification time polling every 500ms.
 
@@ -197,36 +197,36 @@ not watch newly registered projects without a daemon restart.
 ### Project Commands
 
 ```powershell
-agentguard init [--no-create]              # Create agentguard.toml, register workspace
-agentguard status                          # Show daemon state, projects, agents, stats
-agentguard project validate [-p <path>]    # Validate agentguard.toml
-agentguard project check -f <file> -o <op> # Dry-run policy check (op: read/write/delete)
-agentguard project show                    # Display current project policy
-agentguard project unregister [-p <path>]  # Remove workspace from watch
-agentguard project off [-p <path>]         # Temporarily disable protections
-agentguard project on [-p <path>]          # Re-enable protections
+phylax init [--no-create]              # Create phylax.toml, register workspace
+phylax status                          # Show daemon state, projects, agents, stats
+phylax project validate [-p <path>]    # Validate phylax.toml
+phylax project check -f <file> -o <op> # Dry-run policy check (op: read/write/delete)
+phylax project show                    # Display current project policy
+phylax project unregister [-p <path>]  # Remove workspace from watch
+phylax project off [-p <path>]         # Temporarily disable protections
+phylax project on [-p <path>]          # Re-enable protections
 ```
 
 ### Global Commands
 
 ```powershell
-agentguard global add <bucket> <pattern>   # Add system-wide rule
-agentguard global remove <id>              # Remove rule by ID
-agentguard global list                     # List all system-wide rules
+phylax global add <bucket> <pattern>   # Add system-wide rule
+phylax global remove <id>              # Remove rule by ID
+phylax global list                     # List all system-wide rules
 ```
 
 ### Daemon Commands
 
 ```powershell
-agentguard daemon start                    # Spawn daemon binary
-agentguard daemon stop                     # Send shutdown via IPC
-agentguard daemon restart                  # Stop + wait + start
+phylax daemon start                    # Spawn daemon binary
+phylax daemon stop                     # Send shutdown via IPC
+phylax daemon restart                  # Stop + wait + start
 ```
 
 ### Audit Commands
 
 ```powershell
-agentguard audit list [--limit <N>]        # Show recent audit events
+phylax audit list [--limit <N>]        # Show recent audit events
 ```
 
 ## TUI (`agentguard-tui`)

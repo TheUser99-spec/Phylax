@@ -103,7 +103,7 @@ fn main() -> std::io::Result<()> {
 
 // ── Integration with SBS ──────────────────────────────────────────────────
 //
-// To integrate with the AgentGuard daemon, spawn the mascot in a separate
+// To integrate with the Phylax daemon (crate: agentguard-daemon), spawn the mascot in a separate
 // thread and share an Arc<Mutex<App>> or use a channel pattern:
 //
 // ```rust,ignore

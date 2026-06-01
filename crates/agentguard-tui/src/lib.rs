@@ -1,4 +1,4 @@
-//! AgentGuard TUI
+//! Phylax TUI (crate name agentguard-tui retained for backward compatibility)
 //!
 //! Dark terminal dashboard for local AI file safety.
 //! Tab-based: Home | Activity | Projects
@@ -827,7 +827,7 @@ impl App {
             let txt = vec![
                 Line::from(""),
                 Line::from(vec![Span::styled("    ◆  No registered projects.", Style::default().fg(t::MUTED))]),
-                Line::from(vec![Span::styled("    Run `agentguard init` inside a workspace to start protection.", Style::default().fg(t::MUTED))]),
+                Line::from(vec![Span::styled("    Run `phylax init` inside a workspace to start protection.", Style::default().fg(t::MUTED))]),
             ];
             f.render_widget(Paragraph::new(Text::from(txt)).block(card(" Projects ")), area);
             return;

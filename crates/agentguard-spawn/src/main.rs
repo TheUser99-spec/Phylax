@@ -69,6 +69,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
+        // Binary still called agentguard-spawn.exe for backward compat. Pending rename to phylax-spawn.exe.
         eprintln!("agentguard-spawn: <target.exe> [args...]");
         std::process::exit(1);
     }
@@ -82,6 +83,7 @@ fn main() {
         match token::spawn_with_restricted_token(&target, &target_args) {
             Ok(()) => std::process::exit(0),
             Err(e) => {
+                // Legacy prefix retained (binary is agentguard-spawn.exe). Pending rename to [phylax-spawn].
                 eprintln!("[agentguard-spawn] restricted launch failed: {e}");
                 eprintln!("[agentguard-spawn] FAIL-CLOSED: refusing unprotected launch for detected AI agent.");
                 std::process::exit(2);
