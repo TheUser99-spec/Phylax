@@ -20,7 +20,7 @@ impl Notifier {
 #[cfg(windows)]
 fn windows_prompt(agent_name: &str, file_path: &str, operation: &str) -> AskResponse {
     let text: Vec<u16> = format!(
-        "AgentGuard detected an AI agent trying to access a protected file.\n\n\
+        "Phylax detected an AI agent trying to access a protected file.\n\n\
          Agent : {agent_name}\n\
          File  : {file_path}\n\
          Action: {operation}\n\n\
@@ -31,7 +31,7 @@ fn windows_prompt(agent_name: &str, file_path: &str, operation: &str) -> AskResp
     .chain(std::iter::once(0))
     .collect();
 
-    let caption: Vec<u16> = "AgentGuard — Permission Required\0"
+    let caption: Vec<u16> = "Phylax — Permission Required\0"
         .encode_utf16()
         .collect();
 
@@ -70,7 +70,7 @@ fn terminal_prompt(agent_name: &str, file_path: &str, operation: &str) -> AskRes
 
     println!();
     println!("+----------------------------------------+");
-    println!("|  AgentGuard — Permission Required     |");
+    println!("|  Phylax — Permission Required     |");
     println!("+----------------------------------------+");
     println!("| Agent : {:<30} |", agent_name);
     println!("| File  : {:<30} |", truncate(file_path, 30));

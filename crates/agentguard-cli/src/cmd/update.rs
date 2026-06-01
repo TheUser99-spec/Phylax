@@ -12,7 +12,7 @@ pub async fn run(check_only: bool) -> GuardResult<()> {
     let latest = fetch_latest_version().await?;
 
     if latest == CURRENT_VERSION {
-        println!("+ AgentGuard is up to date (v{CURRENT_VERSION})");
+        println!("+ Phylax is up to date (v{CURRENT_VERSION})");
         return Ok(());
     }
 

@@ -44,7 +44,7 @@ pub async fn run(no_create: bool, allow_unhealthy: bool) -> GuardResult<()> {
     IpcClient::new().register_project(cwd.clone()).await?;
 
     println!("+ Proyecto registrado: {}", cwd.display());
-    println!("+ AgentGuard activo -- los agentes seran vigilados en este workspace");
+    println!("+ Phylax activo -- los agentes seran vigilados en este workspace");
     match IpcClient::new().verify_protection(cwd.clone()).await {
         Ok(report) => {
             if report.unhealthy_paths.is_empty() {

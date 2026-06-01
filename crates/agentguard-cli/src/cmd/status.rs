@@ -7,7 +7,7 @@ pub async fn run() -> GuardResult<()> {
         _ => GuardError::DaemonNotRunning,
     })?;
 
-    println!("AgentGuard v{}", status.version);
+    println!("Phylax v{}", status.version);
     println!();
 
     if status.projects.is_empty() {

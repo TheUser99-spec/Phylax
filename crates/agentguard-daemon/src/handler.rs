@@ -377,7 +377,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
             if effective == 0 {
                 warnings.push(
                     "No effective deny paths. \
-                    AgentGuard is not actively protecting any files.".to_string(),
+                    Phylax is not actively protecting any files.".to_string(),
                 );
             }
 

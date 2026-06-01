@@ -609,7 +609,7 @@ impl App {
     fn draw_home_overview(&self, f: &mut Frame, area: Rect) {
         let posture = self.posture();
         let (headline, desc, tone) = match posture {
-            ProtectionPosture::Protected => ("Safe to code", "AgentGuard is watching this workspace.", Tone::Good),
+            ProtectionPosture::Protected => ("Safe to code", "Phylax is watching this workspace.", Tone::Good),
             ProtectionPosture::NeedsSetup => ("Add a project", "Run `phylax init` to protect a workspace.", Tone::Warn),
             ProtectionPosture::NeedsDecision => ("Approval needed", "An agent is waiting for your answer.", Tone::Warn),
             ProtectionPosture::Offline => ("Not connected", "Start the AgentGuard daemon first.", Tone::Danger),
@@ -1303,14 +1303,14 @@ mod tests {
     #[test] fn brand_is_visible_at_top() {
         let mut app = populated_app();
         let content = render(&mut app, 120, 35);
-        assert!(content.contains("AgentGuard"));
+        assert!(content.contains("Phylax"));
         assert!(content.contains("WARDEN ZERO"));
     }
 
     #[test] fn all_tabs_are_present() {
         for tab in 0..3 {
             let mut app = populated_app(); app.active_tab = tab;
-            assert!(render(&mut app, 120, 35).contains("AgentGuard"));
+            assert!(render(&mut app, 120, 35).contains("Phylax"));
         }
     }
 

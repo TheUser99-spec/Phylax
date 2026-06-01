@@ -85,7 +85,7 @@ pub async fn export_logs(format: String, output: PathBuf, limit: Option<usize>) 
         }
         "txt" => {
             let mut w = String::new();
-            w.push_str(&format!("AgentGuard Audit Log\n"));
+            w.push_str(&format!("Phylax Audit Log\n"));
             w.push_str(&format!("{} events, {} blocked\n\n", status.events_today, status.blocks_today));
             w.push_str(&format!(
                 "{:<22} {:<8} {:<10} {:<8} {:<6} {}\n",

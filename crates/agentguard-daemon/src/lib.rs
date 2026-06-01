@@ -30,7 +30,7 @@ impl SingleInstanceGuard {
         use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
         use windows_sys::Win32::System::Threading::CreateMutexW;
 
-        let name = std::ffi::OsStr::new("Global\\AgentGuard.Daemon.Singleton")
+        let name = std::ffi::OsStr::new("Global\\Phylax.Daemon.Singleton")
             .encode_wide()
             .chain(std::iter::once(0))
             .collect::<Vec<_>>();
@@ -121,7 +121,7 @@ pub async fn run_daemon() {
         }
     });
 
-    println!("AgentGuard Daemon v{} started", env!("CARGO_PKG_VERSION"));
+    println!("Phylax Daemon v{} started", env!("CARGO_PKG_VERSION"));
     println!("Dynamic agent detection: ACTIVE (2000ms polling)");
     println!("File watcher: ACTIVE (5000ms polling)");
 
@@ -158,7 +158,7 @@ pub async fn run_daemon() {
 
     let _ = poller_task.await;
 
-    println!("AgentGuard Daemon stopped.");
+    println!("Phylax Daemon stopped.");
 }
 
 pub fn is_daemon_running() -> bool {

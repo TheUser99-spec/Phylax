@@ -16,7 +16,7 @@ pub async fn run() -> GuardResult<()> {
     let daemon_exe = daemon_binary_path();
     if !daemon_exe.exists() {
         return Err(GuardError::IpcError(format!(
-            "Daemon binary not found at {:?}. Build or install AgentGuard first.",
+            "Daemon binary not found at {:?}. Build or install Phylax first.",
             daemon_exe
         )));
     }
