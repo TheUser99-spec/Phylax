@@ -1,20 +1,20 @@
 ---
 import Base from '../layouts/Base.astro';
 
-const title = 'AgentGuard Docs - Commands, Daemon & Architecture';
-const description = 'Complete reference for AgentGuard: commands, daemon lifecycle, permission model, agentguard.toml configuration, and architecture.';
+const title = 'Phylax Docs - Commands, Daemon & Architecture';
+const description = 'Complete reference for Phylax: commands, daemon lifecycle, permission model, agentguard.toml configuration, and architecture.';
 const docsStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'TechArticle',
   headline: title,
   description: description,
-  author: { '@type': 'Person', name: 'AgentGuard Contributors' },
+  author: { '@type': 'Person', name: 'Phylax Contributors' },
   datePublished: '2025-01-01',
   dateModified: '2025-06-01',
   proficiencyLevel: 'Beginner',
   about: {
     '@type': 'SoftwareApplication',
-    name: 'AgentGuard',
+    name: 'Phylax',
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Windows'
   }
@@ -24,9 +24,9 @@ const docsStructuredData = JSON.stringify({
 <Base title={title} description={description} canonical="https://TheUser99-spec.github.io/AgentGuard/docs" structuredData={docsStructuredData}>
   <main>
     <nav class="site-nav" aria-label="Primary navigation">
-      <a class="brand-mark" href="/AgentGuard/" aria-label="AgentGuard home">
-        <span>AgentGuard</span>
-        <span class="brand-dot" aria-hidden="true"></span>
+      <a class="brand-mark" href="/AgentGuard/" aria-label="Phylax home">
+        <img src="/AgentGuard/logo.jpg" alt="" class="brand-logo" width="28" height="28" />
+        <span>Phylax</span>
       </a>
       <div class="nav-links">
         <a href="/AgentGuard/">Home</a>
@@ -40,7 +40,7 @@ const docsStructuredData = JSON.stringify({
         <div class="docs-header">
           <p class="section-kicker">Documentation</p>
           <h1 class="section-title" style="font-size:clamp(36px,5vw,56px)">Everything you need to protect your code from AI agents.</h1>
-          <p class="section-copy" style="max-width:600px">AgentGuard sits between your filesystem and any AI agent. This guide covers every command, concept, and configuration option.</p>
+          <p class="section-copy" style="max-width:600px">Phylax sits between your filesystem and any AI agent. This guide covers every command, concept, and configuration option.</p>
         </div>
 
         <nav class="docs-toc" aria-label="Table of contents">
@@ -61,7 +61,7 @@ const docsStructuredData = JSON.stringify({
       <div class="site-shell docs-content">
         <h2 class="docs-h2">Getting Started</h2>
 
-        <p class="docs-p">Install AgentGuard with a single PowerShell command. No accounts, no cloud, no telemetry.</p>
+        <p class="docs-p">Install Phylax with a single PowerShell command. No accounts, no cloud, no telemetry.</p>
 
         <div class="code-block">
           <div class="code-block-bar">
@@ -81,7 +81,7 @@ const docsStructuredData = JSON.stringify({
 agentguard run        <span class="code-comment"># Opens the live terminal dashboard (60fps)</span></code></pre>
         </div>
 
-        <p class="docs-p">That's it. AgentGuard is now running. Any AI agent that tries to touch a denied file gets <code>ACCESS_DENIED</code> from the Windows kernel.</p>
+        <p class="docs-p">That's it. Phylax is now running. Any AI agent that tries to touch a denied file gets <code>ACCESS_DENIED</code> from the Windows kernel.</p>
       </div>
     </section>
 
@@ -162,7 +162,7 @@ agentguard daemon start</code></pre>
     <section class="section" id="permission-model">
       <div class="site-shell docs-content">
         <h2 class="docs-h2">Permission Model</h2>
-        <p class="docs-p">AgentGuard uses a priority-ordered bucket system. <strong>Deny always wins</strong> - even if a file matches multiple buckets, the highest priority takes effect.</p>
+        <p class="docs-p">Phylax uses a priority-ordered bucket system. <strong>Deny always wins</strong> - even if a file matches multiple buckets, the highest priority takes effect.</p>
 
         <div class="priority-chain" style="margin:28px 0">
           <span class="priority-label">High</span>
@@ -255,7 +255,7 @@ files = [&quot;README.md&quot;, &quot;docs/**&quot;]">Copy</button>
     <section class="section" id="anti-bypass">
       <div class="site-shell docs-content">
         <h2 class="docs-h2">Anti-Bypass Protection</h2>
-        <p class="docs-p">AgentGuard applies three independent layers of Windows security to each denied file. Even if one layer is bypassed, the others still hold.</p>
+        <p class="docs-p">Phylax applies three independent layers of Windows security to each denied file. Even if one layer is bypassed, the others still hold.</p>
 
         <table class="docs-table">
           <thead><tr><th>Layer</th><th>Mechanism</th><th>Blocks</th><th>Bypass attempt</th></tr></thead>

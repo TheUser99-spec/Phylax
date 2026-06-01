@@ -1,10 +1,10 @@
-# AGENTS.md - AgentGuard Codebase Guide
+# AGENTS.md - Phylax Codebase Guide
 
 This file is for AI coding agents (Codex, Claude Code, Cursor, Copilot, etc.) so they can understand the architecture before making changes.
 
 ## What this project is
 
-AgentGuard is a Windows security layer that constrains what AI agents can read, write, or delete at the OS level.
+Phylax is a Windows security layer that constrains what AI agents can read, write, or delete at the OS level.
 
 Primary stack: Rust.
 Kernel minifilter driver (Phase 2): C++ in `driver/`.

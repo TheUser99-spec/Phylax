@@ -8,13 +8,13 @@
 
 <br>
 
-> **AI coding tools can make mistakes. AgentGuard stops them before they touch your private files.**
+> **AI coding tools can make mistakes. Phylax stops them before they touch your private files.**
 
 ---
 
-## What is AgentGuard
+## What is Phylax
 
-AgentGuard is a Windows security layer that sits between your filesystem and any AI coding agent. It applies real Windows ACLs so the OS kernel itself returns `ACCESS_DENIED` before the agent ever touches a protected file.
+Phylax is a Windows security layer that sits between your filesystem and any AI coding agent. It applies real Windows ACLs so the OS kernel itself returns `ACCESS_DENIED` before the agent ever touches a protected file.
 
 It works with Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, and others.
 
@@ -24,7 +24,7 @@ It works with Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, and other
 
 AI agents have unrestricted filesystem access. They can read your secrets, delete your migrations, or wipe your config files — without asking, without warning. Real incidents happen every day.
 
-AgentGuard draws a boundary. The agent can edit your source code. It can never touch your `.env`, your SSH keys, or your policy files.
+Phylax draws a boundary. The agent can edit your source code. It can never touch your `.env`, your SSH keys, or your policy files.
 
 ---
 
@@ -134,7 +134,7 @@ files = ["README.md", "docs/**"]
 
 ### Anti-bypass
 
-AgentGuard applies three layers of Windows security to each denied file so even if one layer is bypassed, the others hold.
+Phylax applies three layers of Windows security to each denied file so even if one layer is bypassed, the others hold.
 
 | Layer | Mechanism | Blocks |
 |---|---|---|
@@ -148,7 +148,7 @@ No account, no cloud, no telemetry.
 
 - No login required
 - Works fully offline
-- Audit logs in local SQLite (`%APPDATA%\AgentGuard\agentguard.db`)
+- Audit logs in local SQLite (`%APPDATA%\Phylax\agentguard.db`)
 - No API keys, no registration, no phone number
 
 Your files, your rules, your machine.
@@ -157,7 +157,7 @@ Your files, your rules, your machine.
 
 ```bash
 git clone https://github.com/TheUser99-spec/AgentGuard.git
-cd AgentGuard
+cd Phylax
 cargo build --workspace --release
 ```
 
@@ -195,7 +195,7 @@ cargo build --workspace --release
 
 ## License
 
-AgentGuard is open-source under the **Apache 2.0 License**. See [LICENSE](LICENSE).
+Phylax is open-source under the **Apache 2.0 License**. See [LICENSE](LICENSE).
 
 Comes with **no warranty**. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -205,7 +205,7 @@ Comes with **no warranty**. See [DISCLAIMER.md](DISCLAIMER.md).
 
 <div align="center">
 
-**If AgentGuard saved your `.env` today, you know what to do →**
+**If Phylax saved your `.env` today, you know what to do →**
 
 [![Stars](https://img.shields.io/github/stars/TheUser99-spec/AgentGuard?style=social)](https://github.com/TheUser99-spec/AgentGuard)
 

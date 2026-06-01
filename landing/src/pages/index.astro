@@ -1,21 +1,21 @@
 ---
 import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
-import WhyAgentGuard from '../components/WhyAgentGuard.astro';
+import WhyPhylax from '../components/WhyPhylax.astro';
 import HowItWorks from '../components/HowItWorks.astro';
 import RealExample from '../components/RealExample.astro';
 import PolicyCards from '../components/PolicyCards.astro';
 import InstallSection from '../components/InstallSection.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 
-const title = 'AgentGuard - OS-level Protection for AI Coding Agents';
-const description = 'AgentGuard blocks dangerous file access before AI agents touch your secrets. 100% local, no accounts, no cloud, no telemetry. Windows ACL enforcement.';
+const title = 'Phylax - OS-level Protection for AI Coding Agents';
+const description = 'Phylax blocks dangerous file access before AI agents touch your secrets. 100% local, no accounts, no cloud, no telemetry. Windows ACL enforcement.';
 const homeStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@type': 'WebSite',
-      name: 'AgentGuard',
+      name: 'Phylax',
       url: 'https://TheUser99-spec.github.io/AgentGuard',
       description: description,
       potentialAction: {
@@ -26,7 +26,7 @@ const homeStructuredData = JSON.stringify({
     },
     {
       '@type': 'SoftwareApplication',
-      name: 'AgentGuard',
+      name: 'Phylax',
       applicationCategory: 'SecurityApplication',
       operatingSystem: 'Windows',
       description: description,
@@ -38,7 +38,7 @@ const homeStructuredData = JSON.stringify({
       },
       author: {
         '@type': 'Person',
-        name: 'AgentGuard Contributors'
+        name: 'Phylax Contributors'
       }
     }
   ]
@@ -48,7 +48,7 @@ const homeStructuredData = JSON.stringify({
 <Base title={title} description={description} structuredData={homeStructuredData}>
   <main>
     <Hero />
-    <WhyAgentGuard />
+    <WhyPhylax />
     <HowItWorks />
     <RealExample />
     <PolicyCards />

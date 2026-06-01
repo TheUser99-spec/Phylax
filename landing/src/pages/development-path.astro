@@ -1,19 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
 
-const title = 'Development Path - Why AgentGuard Exists';
-const description = 'The story behind AgentGuard: from vibecoding disasters and real-world AI data loss incidents to our phased roadmap for complete OS-level agent protection.';
+const title = 'Development Path - Why Phylax Exists';
+const description = 'The story behind Phylax: from vibecoding disasters and real-world AI data loss incidents to our phased roadmap for complete OS-level agent protection.';
 const devPathStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'Article',
   headline: title,
   description: description,
-  author: { '@type': 'Person', name: 'AgentGuard Contributors' },
+  author: { '@type': 'Person', name: 'Phylax Contributors' },
   datePublished: '2025-01-01',
   dateModified: '2025-06-01',
   about: {
     '@type': 'SoftwareApplication',
-    name: 'AgentGuard',
+    name: 'Phylax',
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Windows'
   }
@@ -23,9 +23,9 @@ const devPathStructuredData = JSON.stringify({
 <Base title={title} description={description} canonical="https://TheUser99-spec.github.io/AgentGuard/development-path" structuredData={devPathStructuredData}>
   <main>
     <nav class="site-nav" aria-label="Primary navigation">
-      <a class="brand-mark" href="/AgentGuard/" aria-label="AgentGuard home">
-        <span>AgentGuard</span>
-        <span class="brand-dot" aria-hidden="true"></span>
+      <a class="brand-mark" href="/AgentGuard/" aria-label="Phylax home">
+        <img src="/AgentGuard/logo.jpg" alt="" class="brand-logo" width="28" height="28" />
+        <span>Phylax</span>
       </a>
       <div class="nav-links">
         <a href="/AgentGuard/">Home</a>
@@ -42,7 +42,7 @@ const devPathStructuredData = JSON.stringify({
           I trusted AI agents with my filesystem.<br/>That was a mistake.
         </h1>
         <p class="section-copy" style="max-width:560px;margin:0 auto;text-align:center">
-          This is why AgentGuard exists - and where we're going next.
+          This is why Phylax exists - and where we're going next.
         </p>
       </div>
     </section>
@@ -66,7 +66,7 @@ const devPathStructuredData = JSON.stringify({
 
         <div class="docs-note docs-note--warn">
           <strong>Incident #3 - The System Crash</strong>
-          <p>The worst one. I was testing a security product prototype (similar to what AgentGuard would become). The AI agent, given broad filesystem access, <strong>wiped critical Windows files.</strong> The system froze. No response to keyboard, mouse, anything. Had to hard reboot. Lost hours of work, corrupted a project, and spent a day recovering. The agent didn't know what it was doing - it was just following instructions too literally, with no guardrails.</p>
+          <p>The worst one. I was testing a security product prototype (similar to what Phylax would become). The AI agent, given broad filesystem access, <strong>wiped critical Windows files.</strong> The system froze. No response to keyboard, mouse, anything. Had to hard reboot. Lost hours of work, corrupted a project, and spent a day recovering. The agent didn't know what it was doing - it was just following instructions too literally, with no guardrails.</p>
         </div>
       </div>
     </section>
@@ -114,15 +114,15 @@ const devPathStructuredData = JSON.stringify({
     <!-- PART 3: THE BIRTH OF AGENTGUARD -->
     <section class="section">
       <div class="site-shell docs-content">
-        <h2 class="docs-h2">Part 3 - The Birth of AgentGuard</h2>
+        <h2 class="docs-h2">Part 3 - The Birth of Phylax</h2>
         <p class="docs-p">After the system crash, I asked a simple question:</p>
         <p class="docs-p" style="font-family:var(--serif);font-size:22px;line-height:1.3;color:var(--ink);margin:28px 0"><em>"Why does my AI agent have the same filesystem permissions as me?"</em></p>
         <p class="docs-p">It shouldn't. An AI agent is not a human developer. It doesn't understand that <code>.env</code> contains secrets. It doesn't know that deleting <code>migrations/</code> destroys your database history. It can't tell the difference between a config file and a scratch file.</p>
-        <p class="docs-p"><strong>AgentGuard was born from that question.</strong> A security layer that sits between the AI agent and your filesystem. Not a wrapper. Not a proxy. Real Windows ACLs enforced by the OS kernel itself.</p>
+        <p class="docs-p"><strong>Phylax was born from that question.</strong> A security layer that sits between the AI agent and your filesystem. Not a wrapper. Not a proxy. Real Windows ACLs enforced by the OS kernel itself.</p>
 
         <div class="docs-note">
           <strong>The core insight</strong>
-          <p>AI agents need filesystem access to be useful. But they don't need access to <strong>everything</strong>. AgentGuard draws a boundary: the agent can edit your source code, but it can never touch your secrets, your git history, or your policy files. Period.</p>
+          <p>AI agents need filesystem access to be useful. But they don't need access to <strong>everything</strong>. Phylax draws a boundary: the agent can edit your source code, but it can never touch your secrets, your git history, or your policy files. Period.</p>
         </div>
 
         <p class="docs-p" style="margin-top:24px">I built the MVP in weeks. Not because it was easy - because <strong>it was urgent.</strong> Every day without protection is another day an agent could delete something irreplaceable.</p>
@@ -133,7 +133,7 @@ const devPathStructuredData = JSON.stringify({
     <section class="section">
       <div class="site-shell docs-content">
         <h2 class="docs-h2">The Road Ahead</h2>
-        <p class="docs-p">AgentGuard is built in phases. Each phase adds a fundamentally stronger layer of protection.</p>
+        <p class="docs-p">Phylax is built in phases. Each phase adds a fundamentally stronger layer of protection.</p>
       </div>
     </section>
 
@@ -214,7 +214,7 @@ const devPathStructuredData = JSON.stringify({
       <div class="site-shell docs-content">
         <div class="phase-badge phase-future">On the Horizon</div>
         <h2 class="docs-h2" style="border-top:0;padding-top:0;margin-top:8px">Phase 2.5 - Cross-Platform</h2>
-        <p class="docs-p">AgentGuard was born on Windows because that's where the damage happened. But AI agents run everywhere.</p>
+        <p class="docs-p">Phylax was born on Windows because that's where the damage happened. But AI agents run everywhere.</p>
 
         <div class="platform-grid">
           <div class="platform-card">
@@ -272,17 +272,17 @@ const devPathStructuredData = JSON.stringify({
       <div class="site-shell docs-content" style="text-align:center">
         <h2 class="docs-h2" style="border-top:0;padding-top:0;text-align:center">This Project Is Personal</h2>
         <p class="docs-p" style="text-align:center;max-width:560px;margin:0 auto 16px">
-          I built AgentGuard because I lost data. Real data. Hours of work. API keys. System stability. I don't want anyone else to experience that.
+          I built Phylax because I lost data. Real data. Hours of work. API keys. System stability. I don't want anyone else to experience that.
         </p>
         <p class="docs-p" style="text-align:center;max-width:560px;margin:0 auto 16px">
           AI agents are the future of software development. But they need guardrails. Not because they're bad - because they're powerful. And power without boundaries is dangerous.
         </p>
         <p class="docs-p" style="text-align:center;max-width:560px;margin:0 auto 16px;font-family:var(--serif);font-size:18px;color:var(--ink)">
-          <strong>AgentGuard is that boundary.</strong>
+          <strong>Phylax is that boundary.</strong>
         </p>
 
         <div class="btn-row" style="justify-content:center;margin-top:32px">
-          <a class="button button-primary" href="/AgentGuard/#install">Install AgentGuard</a>
+          <a class="button button-primary" href="/AgentGuard/#install">Install Phylax</a>
           <a class="button button-secondary" href="https://github.com/TheUser99-spec/AgentGuard" target="_blank" rel="noreferrer">Star on GitHub</a>
         </div>
       </div>
