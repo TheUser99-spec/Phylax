@@ -60,7 +60,13 @@
 }
 
 .hero-copy h1 {
-  font-size: clamp(54px, 7vw, 88px);
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+}
+
+.hero-body {
+  max-width: 620px;
 }
 
 .hero-statement {
@@ -106,6 +112,15 @@
   color: var(--red);
 }
 
+.hero-superpowers {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green-dark);
+  letter-spacing: 0.02em;
+}
+
 .hero-stage {
   transform: translateZ(0);
 }
@@ -128,9 +143,64 @@
   font-weight: 800;
 }
 
+.section-title {
+  font-size: clamp(32px, 5vw, 48px) !important;
+  letter-spacing: -0.02em;
+}
+
+.section {
+  padding: 100px 0;
+}
+
 /* ================================================================
-   WHY AGENTGUARD
+   WHY PHYLAX
    ================================================================ */
+.why-drama {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin-top: 24px;
+  border: 1px solid var(--line-strong);
+  background: var(--line-strong);
+}
+
+.drama-problem,
+.drama-solution {
+  padding: 28px 32px;
+  background: var(--paper);
+}
+
+.drama-problem {
+  border-left: 3px solid var(--red);
+}
+
+.drama-solution {
+  border-left: 3px solid var(--green);
+}
+
+.drama-label {
+  display: block;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.drama-problem .drama-label { color: var(--red); }
+.drama-solution .drama-label { color: var(--green-dark); }
+
+.drama-problem p,
+.drama-solution p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.drama-problem p strong { color: var(--red); }
+.drama-solution p strong { color: var(--green-dark); }
 .why-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -519,6 +589,17 @@
   padding: 18px 20px;
 }
 
+.terminal-footnote {
+  padding: 0 20px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(255,255,255,0.2);
+}
+
+.terminal-prompt .prompt-cmd {
+  font-size: 15px;
+}
+
 .terminal-prompt {
   display: flex;
   gap: 8px;
@@ -660,6 +741,10 @@
 }
 
 @media (max-width: 680px) {
+  .why-drama {
+    grid-template-columns: 1fr;
+  }
+
   .scroll-progress {
     height: 2px;
   }

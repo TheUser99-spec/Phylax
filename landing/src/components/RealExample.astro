@@ -14,24 +14,22 @@
     <div class="example-layout" data-reveal>
       <div class="example-console">
         <div class="console-bar">
+          <span class="console-dot-live"></span>
           <span>phylax audit tail</span>
-          <span class="console-live">LIVE</span>
+          <span class="console-live">● LIVE</span>
         </div>
         <div class="console-body">
           <div class="console-line"><span>08:16:08</span><span>AGENT</span><span>opencode.exe detected (env: OPENAICLIENT)</span></div>
-          <div class="console-line"><span>08:16:08</span><span>TRY</span><span>opencode.exe read .env.local</span></div>
-          <div class="console-line"><span>08:16:08</span><span>MATCH</span><span>deny bucket &rarr; .env.*</span></div>
-          <div class="console-line"><span>08:16:08</span><span>DENY</span><span>DENY ACE applied &rarr; ACCESS_DENIED</span></div>
+          <div class="console-line"><span>08:16:08</span><span>TRY</span><span>opencode.exe &rarr; read .env.local</span></div>
+          <div class="console-line console-line--match"><span>08:16:08</span><span>MATCH</span><span>deny bucket &rarr; .env.*</span></div>
+          <div class="console-line console-line--deny"><span>08:16:08</span><span>BLOCK</span><span>DENY ACE applied &rarr; ACCESS_DENIED</span></div>
           <div class="console-line"><span>08:16:08</span><span>MIC</span><span>High Integrity label applied</span></div>
           <div class="console-line"><span>08:16:09</span><span>AUDIT</span><span>event stored in local SQLite</span></div>
-        </div>
-        <div class="console-caption">
-          <span>Windows kernel rejected the operation before the agent touched the file</span>
         </div>
       </div>
 
       <p class="example-caption">
-        Phylax applies <strong>three layers</strong> of Windows security: DENY ACEs block file access, WRITE_DAC protection prevents ACL modification, and Mandatory Integrity Control stops privilege bypass. The agent never sees a single byte.
+        <strong>Three layers</strong> of Windows security: DENY ACEs block file access, WRITE_DAC prevents ACL modification, and Mandatory Integrity Control stops privilege bypass. The kernel returns ACCESS_DENIED — the agent never sees a single byte.
       </p>
     </div>
   </div>

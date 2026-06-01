@@ -4,28 +4,28 @@
       <span class="section-number">02</span>
       <div>
         <p class="section-kicker">How it works</p>
-        <h2 class="section-title">How Phylax works.</h2>
+        <h2 class="section-title">Three steps. Zero cloud.</h2>
         <p class="section-copy">
-          Three steps, all local. No cloud proxy, no API keys, no network required.
+          No cloud proxy, no API keys, no network required. Everything runs locally on your machine.
         </p>
       </div>
     </div>
 
     <div class="flow-simple" aria-label="How Phylax works in 3 steps" data-reveal>
       <div class="flow-step-simple">
-        <div class="flow-num">1</div>
+        <div class="flow-num">01</div>
         <h3>Detect</h3>
         <p>Identifies AI agent processes by image name, environment variables, and command-line inspection. Child processes inherit the agent label automatically.</p>
       </div>
       <div class="flow-step-simple">
-        <div class="flow-num">2</div>
+        <div class="flow-num">02</div>
         <h3>Decide</h3>
-        <p>Checks your <code>phylax.toml</code> rules against the file path and operation. Resolves through priority-ordered buckets: deny always wins over everything else.</p>
+        <p>Checks your <code>phylax.toml</code> rules against the file path and operation. Deny always wins — priority-ordered buckets resolve every access attempt.</p>
       </div>
       <div class="flow-step-simple">
-        <div class="flow-num">3</div>
-        <h3>Block or Allow</h3>
-        <p>Applies real Windows ACLs to the filesystem. The OS kernel enforces the decision - denied files are locked with DENY ACEs and Mandatory Integrity Control labels.</p>
+        <div class="flow-num">03</div>
+        <h3>Block</h3>
+        <p>Applies real Windows ACLs. The kernel returns ACCESS_DENIED before the agent touches a single byte. No userspace trick can bypass it.</p>
       </div>
     </div>
 
