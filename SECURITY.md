@@ -17,7 +17,7 @@ AgentGuard is a security tool, not a silver bullet. Please understand:
 
 - **Phase 1** protects files while the daemon runs. See [Development Path](https://github.com/TheUser99-spec/AgentGuard#roadmap) for limitations.
 - **Phase 2** (kernel minifilter) will provide deeper protection. The driver is under development.
-- Always verify protections with `agentguard project verify`.
+- Always verify protections with `phylax project verify`.
 
 ## Supported Versions
 

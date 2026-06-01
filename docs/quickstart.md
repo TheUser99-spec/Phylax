@@ -1,8 +1,8 @@
-# AgentGuard — Quickstart Guide
+# phylax — Quickstart Guide
 
-## What AgentGuard Does
+## What phylax Does
 
-AgentGuard is an OS-level security layer for Windows that controls what AI coding agents (Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, and others) can read, write, or delete on your machine.
+phylax is an OS-level security layer for Windows that controls what AI coding agents (Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, and others) can read, write, or delete on your machine.
 
 It is **not** a wrapper, proxy, or IDE extension. It applies real Windows ACLs (DENY ACEs + Mandatory Integrity Control) so the OS kernel itself returns ACCESS_DENIED to the agent before it ever touches a protected file.
 
@@ -12,7 +12,7 @@ It is **not** a wrapper, proxy, or IDE extension. It applies real Windows ACLs (
 |------|--------|
 | **100% local** | No accounts, no cloud, no telemetry |
 | **Works offline** | No internet needed |
-| **Audit logs** | Stored in local SQLite at `%APPDATA%\AgentGuard\agentguard.db` |
+| **Audit logs** | Stored in local SQLite at `%APPDATA%\AgentGuard\phylax.db` |
 | **Multi-agent** | Detects Claude, Cursor, OpenCode, Copilot, Windsurf, Aider, and more |
 | **OS-level** | Real Windows ACLs — not an app-level block |
 
@@ -31,11 +31,11 @@ After installation, you have the `agentguard` command available in your terminal
 ## Quick Start
 
 ```powershell
-agentguard init       # Creates agentguard.toml + starts daemon + registers project
-agentguard run        # Opens the live dashboard (daemon + TUI)
+phylax init       # Creates phylax.toml + starts daemon + registers project
+phylax run        # Opens the live dashboard (daemon + TUI)
 ```
 
-At this point, AgentGuard is running and protecting your project. Any AI agent that tries to access a denied file will be blocked by Windows ACLs.
+At this point, phylax is running and protecting your project. Any AI agent that tries to access a denied file will be blocked by Windows ACLs.
 
 ---
 
@@ -45,43 +45,43 @@ At this point, AgentGuard is running and protecting your project. Any AI agent t
 
 | Command | Description |
 |---------|-------------|
-| `agentguard daemon start` | Start daemon in background (no console window, survives terminal close) |
-| `agentguard stop` | Stop daemon and release all Windows file locks |
-| `agentguard run` | Start daemon + open TUI dashboard together |
-| `agentguard ui` | Open TUI only (daemon must already be running) |
+| `phylax daemon start` | Start daemon in background (no console window, survives terminal close) |
+| `phylax stop` | Stop daemon and release all Windows file locks |
+| `phylax run` | Start daemon + open TUI dashboard together |
+| `phylax ui` | Open TUI only (daemon must already be running) |
 
 ### Project Management
 
 | Command | Description |
 |---------|-------------|
-| `agentguard init` | Create `agentguard.toml`, start daemon, register current project |
-| `agentguard status` | Show live status: projects, agents, events, blocks |
-| `agentguard project validate` | Validate your `agentguard.toml` syntax |
-| `agentguard project check -f <file> -o <op>` | Dry-run: check what would happen if an agent tried `<op>` on `<file>` |
-| `agentguard project verify` | Audit effective protection coverage |
-| `agentguard project on` | Turn protection ON for the current project |
-| `agentguard project off` | Turn protection OFF for the current project |
+| `phylax init` | Create `phylax.toml`, start daemon, register current project |
+| `phylax status` | Show live status: projects, agents, events, blocks |
+| `phylax project validate` | Validate your `phylax.toml` syntax |
+| `phylax project check -f <file> -o <op>` | Dry-run: check what would happen if an agent tried `<op>` on `<file>` |
+| `phylax project verify` | Audit effective protection coverage |
+| `phylax project on` | Turn protection ON for the current project |
+| `phylax project off` | Turn protection OFF for the current project |
 
 ### Global Rules
 
 | Command | Description |
 |---------|-------------|
-| `agentguard global add deny "*.env"` | Add a global deny rule for all projects |
-| `agentguard global list` | List all global rules |
-| `agentguard global remove <id>` | Remove a global rule |
+| `phylax global add deny "*.env"` | Add a global deny rule for all projects |
+| `phylax global list` | List all global rules |
+| `phylax global remove <id>` | Remove a global rule |
 
 ### Audit & Monitoring
 
 | Command | Description |
 |---------|-------------|
-| `agentguard audit list` | View audit history (blocked attempts, allowed operations) |
-| `agentguard audit tail` | Follow audit events in real time |
+| `phylax audit list` | View audit history (blocked attempts, allowed operations) |
+| `phylax audit tail` | Follow audit events in real time |
 
 ### Updates
 
 | Command | Description |
 |---------|-------------|
-| `agentguard update` | Auto-update AgentGuard from GitHub |
+| `phylax update` | Auto-update phylax from GitHub |
 
 ---
 
@@ -99,12 +99,12 @@ When the daemon is running:
 
 - The daemon runs **invisibly** (no console window)
 - It **survives terminal close** — it keeps running even after you close PowerShell
-- To check if it's running: `agentguard status`
+- To check if it's running: `phylax status`
 
 ### Stopping the Daemon
 
 ```
-agentguard stop
+phylax stop
 ```
 
 Stopping the daemon:
@@ -112,12 +112,12 @@ Stopping the daemon:
 - Removes DENY ACEs from protected files
 - Files become accessible again
 
-**This is important:** While the daemon is stopped, denied files are NOT protected. To edit protected files like `.env` or `agentguard.toml`:
+**This is important:** While the daemon is stopped, denied files are NOT protected. To edit protected files like `.env` or `phylax.toml`:
 
 ```powershell
-agentguard stop
+phylax stop
 # Edit your files...
-agentguard daemon start
+phylax daemon start
 ```
 
 You can also press `Q` in the TUI dashboard to stop the daemon.
@@ -126,7 +126,7 @@ You can also press `Q` in the TUI dashboard to stop the daemon.
 
 ## Permission Model
 
-AgentGuard uses 6 permission buckets ordered by priority:
+phylax uses 6 permission buckets ordered by priority:
 
 ```
 deny > ask > full > delete > write > read
@@ -154,7 +154,7 @@ When no rule matches a file:
 
 ## Three-Layer Anti-Bypass Protection
 
-AgentGuard applies **three layers** of Windows security to each denied file:
+phylax applies **three layers** of Windows security to each denied file:
 
 | Layer | Mechanism | What It Blocks |
 |-------|-----------|----------------|
@@ -168,11 +168,11 @@ Layer 3 prevents `icacls /remove:d` bypass because the agent runs at Medium inte
 
 ## Phase 1 Limitations (Current)
 
-AgentGuard is currently in **Phase 1** (user-mode enforcement). These are the known limitations:
+phylax is currently in **Phase 1** (user-mode enforcement). These are the known limitations:
 
 ### Files Are Only Protected While Daemon Runs
 
-- When `agentguard stop` is executed, all DENY ACEs are removed
+- When `phylax stop` is executed, all DENY ACEs are removed
 - Files become fully accessible
 - A malicious agent could wait for the daemon to stop, or the user might forget to restart it
 
@@ -184,20 +184,20 @@ AgentGuard is currently in **Phase 1** (user-mode enforcement). These are the kn
 
 ### Audit Logs Are User-Writable
 
-- SQLite database at `%APPDATA%\AgentGuard\agentguard.db` is in user space
+- SQLite database at `%APPDATA%\AgentGuard\phylax.db` is in user space
 - A determined agent with filesystem access could modify or delete audit logs
 
 ### Everyone ACEs
 
 - DENY ACEs apply to Everyone (including the human user)
 - You must stop the daemon to work on protected files yourself
-- Use `agentguard project off` / `agentguard project on` to temporarily disable protection
+- Use `phylax project off` / `phylax project on` to temporarily disable protection
 
 ---
 
 ## Phase 2 Roadmap (Kernel Minifilter)
 
-Phase 2 adds a C++ kernel minifilter driver (`driver/agentguard.sys`) that will:
+Phase 2 adds a C++ kernel minifilter driver (`driver/phylax.sys`) that will:
 
 | Feature | Phase 1 | Phase 2 |
 |---------|---------|---------|
@@ -215,7 +215,7 @@ Phase 2 is currently under development in `driver/`. It requires a signed kernel
 
 ## Agent Detection
 
-AgentGuard detects AI agents using 5 signals in priority order:
+phylax detects AI agents using 5 signals in priority order:
 
 | Signal | Method | Result |
 |--------|--------|--------|
@@ -227,7 +227,7 @@ AgentGuard detects AI agents using 5 signals in priority order:
 
 ### Supported Agents
 
-AgentGuard recognizes these AI coding tools automatically:
+phylax recognizes these AI coding tools automatically:
 - Claude Code
 - Cursor
 - OpenCode
@@ -240,7 +240,7 @@ AgentGuard recognizes these AI coding tools automatically:
 
 ---
 
-## agentguard.toml Reference
+## phylax.toml Reference
 
 ```toml
 [project]
@@ -248,7 +248,7 @@ name = "my-project"
 default = "conservative"    # or "unrestricted"
 
 [deny]                       # Highest priority — complete block
-files = [".env", ".env.*", "secrets/**", "*.pem", "*.key", "agentguard.toml"]
+files = [".env", ".env.*", "secrets/**", "*.pem", "*.key", "phylax.toml"]
 
 [ask]                        # User must approve each operation
 files = ["Cargo.lock", "package-lock.json", "migrations/**"]
@@ -269,8 +269,8 @@ files = ["README.md", "docs/**"]
 
 ### Mandatory Deny Patterns
 
-These patterns are **always denied** by the daemon, even if missing from your `agentguard.toml`:
-- `agentguard.toml` — prevents policy tampering
+These patterns are **always denied** by the daemon, even if missing from your `phylax.toml`:
+- `phylax.toml` — prevents policy tampering
 - `.env`, `.env.*` — always protect secrets
 - `.git/**` — protect git internals
 - `**/*.key`, `**/*.pem`, `**/*.p12`, `**/*.pfx` — always protect key material
@@ -292,7 +292,7 @@ Windows Kernel (checks DACL)
 Agent receives ERROR_ACCESS_DENIED
         |
         v
-AgentGuard Daemon logs audit event -> SQLite
+phylax Daemon logs audit event -> SQLite
 ```
 
 ## Crate Structure
@@ -313,5 +313,5 @@ crates/
   agentguard-tui/          Dashboard (ratatui, 60fps)
 
 driver/
-  agentguard.sys           Phase 2 kernel minifilter (C++)
+  phylax.sys           Phase 2 kernel minifilter (C++)
 ```
