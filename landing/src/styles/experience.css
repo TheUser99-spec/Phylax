@@ -224,62 +224,6 @@
 }
 
 /* ================================================================
-   TRUST STRIP
-   ================================================================ */
-.trust-strip {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 24px 0;
-  margin-top: 64px;
-}
-
-.trust-items {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-}
-
-.trust-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0;
-}
-
-.trust-icon {
-  width: 28px; height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  color: var(--green-dark);
-  flex-shrink: 0;
-}
-
-.trust-item strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.trust-item span {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.35;
-  margin-top: 1px;
-}
-
-@media (max-width: 680px) {
-  .trust-items {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-}
-
-/* ================================================================
    WHY PHYLAX
    ================================================================ */
 .why-drama {
