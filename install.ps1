@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 $InstallDir = "$env:LOCALAPPDATA\Phylax"
 $BinDir = "$InstallDir\bin"
 $Repo = "TheUser99-spec/Phylax"
