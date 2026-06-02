@@ -51,7 +51,7 @@ impl DaemonState {
         self.store.set_project_hash(&w, &h).map_err(|err| { if let Err(e) = e.release_project_protections() { eprintln!("[daemon] WARN: ACE rollback failed: {e}"); } err })?;
         let e = Arc::new(RwLock::new(e)); emit_health(self, &w, &e, &c);
         recover_lock!(self.projects.write(), "projects").insert(w.clone(), ProjectEntry { manifest: c, enforcer: e, toml_hash: h });
-        tracing::info!("Project registered: {}", w.display()); self.system_msg("success", &format!("Project registered: {}", w.display())); self.protections_active.store(true, Ordering::SeqCst); Ok(())
+        eprintln!("[daemon] Project registered: {}", w.display()); self.system_msg("success", &format!("Project registered: {}", w.display())); self.protections_active.store(true, Ordering::SeqCst); Ok(())
     }
 
     pub fn unregister_project(&self, workspace: &Path) -> GuardResult<()> {
@@ -79,7 +79,7 @@ impl DaemonState {
         self.store.set_project_hash(&w, &nh)?; let e = Arc::new(RwLock::new(e));
         recover_lock!(self.projects.write(), "projects").insert(w.clone(), ProjectEntry { manifest: c, enforcer: e, toml_hash: nh });
         if let Some(entry) = recover_lock!(self.projects.read(), "projects").get(&w) { emit_health(self, &w, &entry.enforcer, &entry.manifest); }
-        tracing::info!("Hot-reload: {}", w.display()); self.system_msg("success", &format!("Policy reloaded: {}", w.display())); Ok(())
+        eprintln!("[daemon] Hot-reload: {}", w.display()); self.system_msg("success", &format!("Policy reloaded: {}", w.display())); Ok(())
     }
 
     pub fn add_global_rule(&self, bucket: Bucket, pattern: &str) -> GuardResult<i64> { let id = self.store.insert_global_rule(bucket, pattern)?; rebuild_global(self)?; Ok(id) }
@@ -128,8 +128,12 @@ impl DaemonState {
                     self.persist_session_start(i.pid, &i.image_name, l, None);
                     let prim = matches!(l, AgentLabel::Definite | AgentLabel::Probable);
                     if prim {
-                        self.protect_all_projects();
-                        self.system_msg("warn", &format!("BLOCKED: Agent {} (PID={}) detected - deny rules applied", i.image_name, i.pid));
+                        let applied = self.protect_all_projects();
+                        if applied {
+                            self.system_msg("warn", &format!("BLOCKED: Agent {} (PID={}) detected - deny rules applied", i.image_name, i.pid));
+                        } else {
+                            self.system_msg("error", &format!("Agent {} (PID={}) detected but protection could not be applied — check daemon privileges", i.image_name, i.pid));
+                        }
                     }
                     self.emit(IpcResponse::Event(StreamingEvent::AgentDetected(ActiveAgent{pid:i.pid,image_name:i.image_name.clone(),label:l,workspace:None,started_at:chrono::Utc::now().timestamp()})));
                     self.status_event();
@@ -148,7 +152,7 @@ impl DaemonState {
         }
     }
 
-    fn protect_all_projects(&self) { if self.protections_active.swap(true, Ordering::SeqCst) { return; } for e in recover_lock!(self.projects.read(), "projects").values() { if let Err(err) = e.enforcer.write().unwrap().apply_project_protections(&e.manifest) { eprintln!("[daemon] WARN: protect failed: {err}"); } } }
+    fn protect_all_projects(&self) -> bool { if self.protections_active.swap(true, Ordering::SeqCst) { return true; } let mut any_ok = false; for e in recover_lock!(self.projects.read(), "projects").values() { match e.enforcer.write().unwrap().apply_project_protections(&e.manifest) { Ok(()) => any_ok = true, Err(err) => { eprintln!("[daemon] WARN: protect failed: {err}"); } } } if !any_ok { self.protections_active.store(false, Ordering::SeqCst); } any_ok }
     pub(crate) fn release_all_projects(&self) { self.protections_active.store(false, Ordering::SeqCst); for e in recover_lock!(self.projects.read(), "projects").values() { if let Err(err) = e.enforcer.read().unwrap().release_project_protections() { eprintln!("[daemon] WARN: release failed: {err}"); } } }
     pub(crate) fn protect_new_file(&self, fp: &Path) { if !self.protections_active.load(Ordering::SeqCst) { return; } for (ws, entry) in recover_lock!(self.projects.read(), "projects").iter() { if !(fp.starts_with(ws) || is_in_ws(fp, ws)) { continue; } match entry.manifest.bucket_for_path(fp) { Some(Bucket::Deny) | Some(Bucket::Read) => { eprintln!("[daemon] New protected file: {}", fp.display()); if let Err(err) = entry.enforcer.write().unwrap().reapply_ask(fp) { eprintln!("[daemon] WARN: protect new file: {err}"); } entry.enforcer.write().unwrap().add_to_deny_cache(fp.to_path_buf()); } Some(Bucket::Write) => { eprintln!("[daemon] New write-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_delete_deny_ace(fp); } Some(Bucket::Delete) => { eprintln!("[daemon] New delete-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_write_deny_ace(fp); } _ => {} } } }
 
@@ -217,7 +221,7 @@ impl DaemonState {
         }
     }
 
-    fn restore_projects(&self) -> GuardResult<()> { for p in self.store.list_projects()? { if p.path.exists() { if let Err(e) = self.register_project(p.path.clone()) { tracing::warn!("restore failed: {e}"); } } } Ok(()) }
+    fn restore_projects(&self) -> GuardResult<()> { for p in self.store.list_projects()? { if p.path.exists() { if let Err(e) = self.register_project(p.path.clone()) { eprintln!("[daemon] WARN: restore project {} failed: {e}", p.path.display()); } } else { eprintln!("[daemon] WARN: project path missing on disk, skipping: {}", p.path.display()); } } Ok(()) }
     fn restore_global_rules(&self) -> GuardResult<()> { rebuild_global(self) }
 }
 
@@ -243,7 +247,7 @@ fn eval_global(s: &DaemonState, p: &Path, op: &FileOp) -> (PolicyDecision, Polic
 fn emit_health(s: &DaemonState, ws: &Path, enforcer: &Arc<RwLock<agentguard_enforce::Enforcer>>, manifest: &CompiledManifest) {
     if let Ok(a) = enforcer.read().unwrap().audit_project_protections(manifest) {
         let t=a.len(); let h=a.iter().filter(|x|x.health.healthy()).count(); let e=a.iter().filter(|x|x.health.content_deny&&x.health.metadata_deny).count();
-        let w: Vec<_> = if e<t { vec![format!("{}/{} deny paths effective", e, t)] } else { vec![] };
+        let w: Vec<_> = if t == 0 { vec!["0 deny paths found in workspace — Phylax is not actively blocking any files".into()] } else if e<t { vec![format!("{}/{} deny paths effective", e, t)] } else { vec![] };
         s.emit(IpcResponse::ProtectionReport(agentguard_ipc::ProtectionReportData { schema_version:1, workspace:ws.to_path_buf(), total_deny_paths:t, healthy_paths:h, effective_deny_paths:e,
             unhealthy_paths: a.into_iter().filter(|x|!x.health.healthy()).map(|x| agentguard_ipc::ProtectionPathHealth { path:x.path, exists:x.health.exists, content_deny:x.health.content_deny, metadata_deny:x.health.metadata_deny, effective_deny:x.health.content_deny&&x.health.metadata_deny, healthy:x.health.healthy() }).collect(), warnings: w }));
     }

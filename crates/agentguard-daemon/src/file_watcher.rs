@@ -38,8 +38,21 @@ fn list_files(root: &Path) -> Vec<PathBuf> {
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
-            let n = e.file_name().to_string_lossy();
-            !matches!(n.as_ref(), ".git" | "node_modules" | "target" | "__pycache__" | ".venv")
+            if e.file_type().is_dir() {
+                let n = e.file_name().to_string_lossy();
+                if matches!(n.as_ref(), "node_modules" | "target" | "__pycache__" | ".venv") {
+                    return false;
+                }
+                if n.as_ref() == "objects" || n.as_ref() == "pack" {
+                    if let Some(parent) = e.path().parent() {
+                        let pn = parent.file_name().map(|p| p.to_string_lossy()).unwrap_or_default();
+                        if pn.as_ref() == ".git" || pn.as_ref() == "objects" {
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())

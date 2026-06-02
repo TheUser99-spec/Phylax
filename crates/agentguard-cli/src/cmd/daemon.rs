@@ -79,27 +79,45 @@ pub async fn start() -> GuardResult<()> {
 }
 
 pub async fn stop() -> GuardResult<()> {
-    match IpcClient::new().shutdown().await {
-        Ok(()) | Err(GuardError::IpcError { .. }) => {}
-        Err(e) => {
-            // Shutdown request failed — try killing by name
-            kill_daemon_process();
-            return Err(e);
+    // Send graceful shutdown via IPC
+    let _ = IpcClient::new().shutdown().await;
+
+    // Wait up to 5s for the daemon process to actually exit
+    for _ in 0..25 {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if daemon_process_count() == 0 {
+            println!("+ Daemon stopped");
+            return Ok(());
         }
     }
-    println!("+ Daemon stopped");
-    Ok(())
-}
 
-pub async fn restart() -> GuardResult<()> {
-    // Try graceful stop via IPC first
-    let _ = IpcClient::new().shutdown().await;
-    tokio::time::sleep(Duration::from_millis(500)).await;
-
-    // Force kill if still running
+    // Still running — force kill
+    eprintln!("! Daemon did not exit gracefully, force killing...");
     kill_daemon_process();
     tokio::time::sleep(Duration::from_millis(500)).await;
 
+    if daemon_process_count() == 0 {
+        println!("+ Daemon stopped (forced)");
+        Ok(())
+    } else {
+        Err(GuardError::IpcError(
+            "daemon process still running after forced kill — run `phylax daemon emergency-stop`".into(),
+        ))
+    }
+}
+
+pub async fn restart() -> GuardResult<()> {
+    let _ = IpcClient::new().shutdown().await;
+    // Wait up to 3s for graceful exit
+    for _ in 0..15 {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if daemon_process_count() == 0 { break; }
+    }
+    kill_daemon_process();
+    for _ in 0..5 {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if daemon_process_count() == 0 { break; }
+    }
     start().await
 }
 
@@ -233,51 +251,48 @@ try {
 
 #[cfg(windows)]
 fn daemon_process_count() -> usize {
-    let output = std::process::Command::new("tasklist")
-        .args([
-            "/FI",
-            "IMAGENAME eq phylax-daemon.exe",
-            "/FO",
-            "CSV",
-            "/NH",
-        ])
-        .output();
-
-    if let Ok(output) = output {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let count = stdout
-                .lines()
-                .map(str::trim)
-                .filter(|line| !line.is_empty())
-                .filter(|line| !line.starts_with("INFO:"))
-                .count();
-            return count;
-        }
-    }
-
-    // Fallback for environments where tasklist returns ACCESS DENIED but
-    // PowerShell can still enumerate process metadata.
-    let ps = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "(Get-Process -Name 'phylax-daemon' -ErrorAction SilentlyContinue | Measure-Object).Count",
-        ])
-        .output();
-
-    let Ok(ps) = ps else {
-        return 0;
+    use std::ffi::OsString;
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
     };
-    if !ps.status.success() {
+
+    let handle = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+    if handle == std::ptr::null_mut()
+        || handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE
+    {
         return 0;
     }
 
-    String::from_utf8_lossy(&ps.stdout)
-        .trim()
-        .parse::<usize>()
-        .unwrap_or(0)
+    let mut count = 0usize;
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..unsafe { std::mem::zeroed() }
+    };
+
+    let mut ok = unsafe { Process32FirstW(handle, &mut entry) };
+    while ok != 0 {
+        let name = OsString::from_wide(trim_null(&entry.szExeFile))
+            .to_string_lossy()
+            .to_ascii_lowercase();
+        if name == "phylax-daemon.exe" {
+            count += 1;
+        }
+        ok = unsafe { Process32NextW(handle, &mut entry) };
+    }
+
+    unsafe { CloseHandle(handle) };
+    count
+}
+
+#[cfg(windows)]
+fn trim_null(wide: &[u16]) -> &[u16] {
+    match wide.iter().position(|&c| c == 0) {
+        Some(pos) => &wide[..pos],
+        None => wide,
+    }
 }
 
 #[cfg(windows)]

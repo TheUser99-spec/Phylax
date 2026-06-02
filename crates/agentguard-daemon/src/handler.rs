@@ -186,7 +186,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
         }
 
         IpcRequest::Shutdown => {
-            tracing::info!("Shutdown requested via CLI");
+            eprintln!("[daemon] Shutdown requested via CLI");
             state.signal_shutdown();
             Ok(IpcResponse::Ok)
         }
@@ -232,7 +232,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
                 }
             };
             let id = state.add_global_rule(bucket, &pattern)?;
-            tracing::info!("Global rule added: id={id} [{bucket}] {pattern}");
+            eprintln!("[daemon] Global rule added: id={id} [{bucket}] {pattern}");
             Ok(IpcResponse::Ok)
         }
 
@@ -245,7 +245,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
                     "Global rule {id} not found"
                 )));
             }
-            tracing::info!("Global rule removed: id={id}");
+            eprintln!("[daemon] Global rule removed: id={id}");
             Ok(IpcResponse::Ok)
         }
 

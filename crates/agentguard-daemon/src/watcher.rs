@@ -38,7 +38,7 @@ pub async fn run_watcher(
                                     workspace.display()
                                 );
                                 if let Err(e) = state.reload_project(&workspace) {
-                                    tracing::error!("Hot-reload error: {e}");
+                                    eprintln!("[daemon] Hot-reload error: {e}");
                                 }
                             }
                         }

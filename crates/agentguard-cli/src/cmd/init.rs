@@ -34,9 +34,14 @@ pub async fn run(no_create: bool, allow_unhealthy: bool) -> GuardResult<()> {
     match ensure_daemon_running().await {
         Ok(()) => {}
         Err(e) => {
-            println!("- Daemon not available: {e}");
-            println!("  Start it manually: phylax daemon start");
-            return Ok(());
+            eprintln!();
+            eprintln!("! DAEMON UNAVAILABLE: {e}");
+            eprintln!("  The daemon is required to register and protect this project.");
+            eprintln!("  Start it:  phylax daemon start");
+            eprintln!("  Or launch:  phylax run");
+            return Err(agentguard_core::GuardError::IpcError(
+                "init aborted: daemon is not running. Project was NOT registered. Start the daemon and re-run `phylax init --no-create`.".to_string(),
+            ));
         }
     }
 
@@ -46,7 +51,14 @@ pub async fn run(no_create: bool, allow_unhealthy: bool) -> GuardResult<()> {
     println!("+ Phylax active -- agents will be monitored in this workspace");
     match IpcClient::new().verify_protection(cwd.clone()).await {
         Ok(report) => {
-            if report.unhealthy_paths.is_empty() {
+            if report.total_deny_paths == 0 {
+                println!();
+                println!("! WARNING: 0 deny paths found in workspace.");
+                println!("  Phylax is NOT actively blocking any files right now.");
+                println!("  This happens when no files match deny patterns (e.g. .env, *.pem, *.key).");
+                println!("  Create a file matching a deny pattern or add targeted patterns in phylax.toml.");
+                println!("  Run `phylax project check <file>` to test a specific path.");
+            } else if report.unhealthy_paths.is_empty() {
                 println!(
                     "+ Protection audit OK: full={}/{} effective={}/{} deny paths",
                     report.healthy_paths,

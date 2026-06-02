@@ -427,7 +427,7 @@ pub fn auto_detect(root: &Path) -> ProjectManifest {
     let mut deny = detect_secrets(root);
     deny.extend(detect_vcs_patterns(root));
     // phylax.toml itself must be protected from AI agents reading/modifying policy.
-    // The daemon skips ACE application on this file to preserve hot-reload capability.
+    // ACE is applied to this file; the daemon temporarily unlocks it for hot-reload reads.
     deny.push("phylax.toml".to_string());
     deny.sort();
     deny.dedup();

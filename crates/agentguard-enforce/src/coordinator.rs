@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 const SKIP_DIRS: &[&str] = &[
-    ".git", "node_modules", "target", "__pycache__", ".venv", "vendor",
+    "node_modules", "target", "__pycache__", ".venv", "vendor",
 ];
 
 #[derive(Clone)]
@@ -35,19 +35,45 @@ impl Enforcer {
         let delete_paths = self.collect_paths_for_bucket(manifest, Bucket::Delete);
         let read_paths = self.collect_paths_for_bucket(manifest, Bucket::Read);
 
+        let mut errors = Vec::new();
+        let mut applied = 0usize;
+
         for path in deny_paths.iter().chain(read_paths.iter()) {
-            crate::ace::apply_deny_ace(path)?;
+            match crate::ace::apply_deny_ace(path) {
+                Ok(()) => applied += 1,
+                Err(e) => errors.push((path.clone(), e)),
+            }
         }
         for path in write_paths.iter().chain(read_paths.iter()) {
-            crate::ace::apply_delete_deny_ace(path)?;
+            match crate::ace::apply_delete_deny_ace(path) {
+                Ok(()) => applied += 1,
+                Err(e) => errors.push((path.clone(), e)),
+            }
         }
         for path in delete_paths.iter() {
-            crate::ace::apply_write_deny_ace(path)?;
+            match crate::ace::apply_write_deny_ace(path) {
+                Ok(()) => applied += 1,
+                Err(e) => errors.push((path.clone(), e)),
+            }
+        }
+
+        if !errors.is_empty() {
+            eprintln!("[enforce] WARN: {} ACE application(s) failed:", errors.len());
+            for (path, err) in &errors {
+                eprintln!("[enforce]   {}: {err}", path.display());
+            }
         }
 
         let mut all = deny_paths;
         all.extend(write_paths); all.extend(delete_paths); all.extend(read_paths);
         self.cached_deny_paths = all;
+
+        if applied == 0 && !errors.is_empty() {
+            return Err(agentguard_core::GuardError::EnforcementFailed {
+                path: self.workspace_root.display().to_string(),
+                reason: format!("all {} ACE application(s) failed", errors.len()),
+            });
+        }
         Ok(())
     }
 
@@ -112,8 +138,21 @@ impl Enforcer {
             .follow_links(false)
             .into_iter()
             .filter_entry(|e| {
-                let name = e.file_name().to_string_lossy();
-                !SKIP_DIRS.iter().any(|skip| name.as_ref() == *skip)
+                if e.file_type().is_dir() {
+                    let name = e.file_name().to_string_lossy();
+                    if SKIP_DIRS.iter().any(|skip| name.as_ref() == *skip) {
+                        return false;
+                    }
+                    if name.as_ref() == "objects" || name.as_ref() == "pack" {
+                        if let Some(parent) = e.path().parent() {
+                            let pname = parent.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+                            if pname.as_ref() == ".git" || pname.as_ref() == "objects" {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                true
             })
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file());
