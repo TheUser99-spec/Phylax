@@ -186,7 +186,9 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
         }
 
         IpcRequest::Shutdown => {
-            eprintln!("[daemon] Shutdown requested via CLI");
+            eprintln!("[daemon] Shutdown requested via CLI — releasing all ACEs first...");
+            state.release_all_projects();
+            eprintln!("[daemon] ACEs released, signalling shutdown.");
             state.signal_shutdown();
             Ok(IpcResponse::Ok)
         }

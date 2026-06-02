@@ -79,21 +79,35 @@ pub async fn start() -> GuardResult<()> {
 }
 
 pub async fn stop() -> GuardResult<()> {
-    // Try graceful shutdown via IPC (fire and forget, don't wait for cleanup)
-    let _ = IpcClient::new().shutdown().await;
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    // Send shutdown — daemon releases ACEs before responding
+    match IpcClient::new().shutdown().await {
+        Ok(()) => {}
+        Err(_) => {
+            // IPC failed, daemon may be dead or unresponsive — force kill
+            force_kill_all_daemon_processes();
+        }
+    }
 
-    // Force kill any remaining daemon processes
+    // Wait up to 2s for process to exit naturally (ACEs already released)
+    for _ in 0..10 {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if daemon_process_count() == 0 {
+            println!("+ Daemon stopped");
+            return Ok(());
+        }
+    }
+
+    // Still running after ACE release — force kill (safe, ACEs already gone)
     force_kill_all_daemon_processes();
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     let remaining = daemon_process_count();
     if remaining == 0 {
-        println!("+ Daemon stopped");
+        println!("+ Daemon stopped (forced)");
         Ok(())
     } else {
         Err(GuardError::IpcError(format!(
-            "Failed to kill {remaining} daemon process(es). Run as Administrator and try: phylax daemon emergency-stop"
+            "Failed to kill {remaining} daemon process(es). Run as Administrator: phylax daemon emergency-stop"
         )))
     }
 }
