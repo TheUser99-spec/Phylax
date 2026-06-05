@@ -42,6 +42,7 @@ const devPathStructuredData = JSON.stringify({
         <a href="/">Home</a>
         <a href="/docs">Docs</a>
         <a href="/development-path" class="is-active">Development Path</a>
+        <a href="https://github.com/TheUser99-spec/Phylax" target="_blank" rel="noreferrer">GitHub</a>
       </div>
     </nav>
 
@@ -160,6 +161,7 @@ const devPathStructuredData = JSON.stringify({
         <h2 class="docs-h2" style="border-top:0;padding-top:0;margin-top:8px">Phase 1 - ACL Enforcement</h2>
         <p class="docs-p">What you're using right now. The daemon applies DENY ACEs + Mandatory Integrity Control labels to files matching your <code>[deny]</code> rules. The Windows kernel enforces the block.</p>
 
+        <div class="docs-table-wrap">
         <table class="docs-table">
           <thead><tr><th>Feature</th><th>Status</th></tr></thead>
           <tbody>
@@ -174,6 +176,7 @@ const devPathStructuredData = JSON.stringify({
             <tr><td>CLI (14 commands: init, run, stop, status, audit...)</td><td><span class="tag tag-green">Done</span></td></tr>
           </tbody>
         </table>
+        </div>
 
         <div class="docs-note docs-note--warn" style="margin-top:20px">
           <strong>Phase 1 limitations</strong>
@@ -189,6 +192,7 @@ const devPathStructuredData = JSON.stringify({
         <h2 class="docs-h2" style="border-top:0;padding-top:0;margin-top:8px">Phase 2 - Kernel Minifilter</h2>
         <p class="docs-p">A C++ Windows kernel driver (<code>driver/phylax.sys</code>) that intercepts I/O operations at ring 0. The driver <strong>pauses IRPs inline</strong> and evaluates them before the agent ever touches a byte. This is the real deal.</p>
 
+        <div class="docs-table-wrap">
         <table class="docs-table">
           <thead><tr><th>Feature</th><th>What it means</th></tr></thead>
           <tbody>
@@ -222,6 +226,7 @@ const devPathStructuredData = JSON.stringify({
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </section>
 
@@ -271,7 +276,7 @@ const devPathStructuredData = JSON.stringify({
         </p>
 
         <div class="btn-row" style="justify-content:center;margin-top:32px">
-          <a class="button button-primary" href="/#install">Install Phylax</a>
+          <a class="button button-primary" href="/#install">Get Started</a>
           <a class="button button-secondary" href="https://github.com/TheUser99-spec/Phylax" target="_blank" rel="noreferrer">Star on GitHub</a>
         </div>
       </div>

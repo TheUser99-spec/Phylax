@@ -806,12 +806,36 @@
     width: min(100% - 32px, 760px);
   }
 
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+  }
+
   .hero-layout {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 680px) {
+  .site-nav {
+    padding: 0 12px;
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .nav-links {
+    gap: 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .brand-mark {
+    font-size: 14px;
+  }
+
   .why-drama {
     grid-template-columns: 1fr;
   }
@@ -1156,6 +1180,60 @@
   .docs-toc a {
     font-size: 12px;
     padding: 3px 8px;
+  }
+
+  .section {
+    padding: 56px 0;
+  }
+
+  .docs-h2 {
+    font-size: 22px;
+    padding-top: 40px;
+  }
+
+  .docs-h3 {
+    font-size: 17px;
+    margin: 24px 0 10px;
+  }
+
+  .docs-p {
+    font-size: 14px;
+  }
+
+  .docs-header {
+    margin-bottom: 28px;
+  }
+
+  .docs-header .section-title {
+    font-size: clamp(26px, 8vw, 36px) !important;
+  }
+
+  .code-block pre {
+    padding: 14px 16px;
+  }
+
+  .code-block pre code {
+    font-size: 12px;
+  }
+
+  .docs-note {
+    padding: 16px 18px;
+  }
+
+  .incident-card {
+    padding: 16px 18px;
+  }
+
+  .incident-title {
+    font-size: 13px;
+  }
+
+  .platform-card {
+    padding: 20px 18px;
+  }
+
+  .platform-card strong {
+    font-size: 17px;
   }
 }
 
