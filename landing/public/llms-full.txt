@@ -1,128 +1,197 @@
-# Phylax - Complete Documentation
+# Phylax — Complete Documentation for AI Crawlers
 
 ## What is Phylax
 
-Phylax is a Windows security layer that sits between your filesystem and any AI coding agent. It applies real Windows ACLs so the OS kernel itself returns ACCESS_DENIED before the agent ever touches a protected file. It works with Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, and others.
-
-## Why it exists
-
-AI agents have unrestricted filesystem access. They can read your secrets, delete your migrations, or wipe your config files - without asking, without warning. Phylax draws a boundary: the agent can edit your source code, but it can never touch your .env, your SSH keys, or your policy files.
-
-## Install
-
-```powershell
-irm https://raw.githubusercontent.com/TheUser99-spec/Phylax/main/install.ps1 | iex
-```
-
-## Basic usage
-
-```powershell
-phylax init       # Creates phylax.toml, starts daemon, registers your project
-phylax run        # Opens the live dashboard
-```
-
-## Daemon lifecycle
-
-The daemon runs invisible in the background - no console window, survives terminal close.
-
-| Command | What it does |
-|---|---|
-| phylax daemon start | Start daemon (invisible) |
-| phylax stop | Stop daemon and release file locks |
-| phylax run | Daemon + dashboard together |
-| phylax ui | Dashboard only |
-| phylax status | Live status: projects, agents, events, blocks |
-| phylax update | Auto-update from GitHub |
-
-While the daemon runs, denied files are locked by Windows ACLs. To edit protected files:
-```powershell
-phylax stop
-# edit your files...
-phylax daemon start
-```
-
-Press Q in the dashboard to stop the daemon.
-
-## Permission model
-
-Six buckets ordered by priority. Deny always wins.
-
-| Priority | Bucket | Meaning |
-|---|---|---|
-| 1 | [deny] | Complete block |
-| 2 | [ask] | User must approve |
-| 3 | [full] | Unrestricted |
-| 4 | [delete] | Read + Delete |
-| 5 | [write] | Read + Write |
-| 6 | [read] | Read only |
-
-Conservative default: read allowed, write asks, delete denied.
-
-## phylax.toml
-
-```toml
-[project]
-name = "phylax-project"
-default = "conservative"
-
-[deny]
-files = [".env", ".env.*", "secrets/**", "*.pem", "*.key"]
-
-[ask]
-files = ["Cargo.lock", "migrations/**"]
-
-[write]
-files = ["src/**", "tests/**"]
-
-[read]
-files = ["README.md", "docs/**"]
-```
-
-## All commands
-
-| Command | What it does |
-|---|---|
-| phylax init | Create phylax.toml, start daemon, register project |
-| phylax run | Start daemon + open dashboard |
-| phylax stop | Stop daemon (releases file locks) |
-| phylax status | Live status: projects, agents, events, blocks |
-| phylax project validate | Validate phylax.toml |
-| phylax project check -f <f> -o <op> | Dry-run file access check |
-| phylax project verify | Audit protection coverage |
-| phylax global add deny "*.env" | Add global deny rule |
-| phylax audit list | View audit history |
-| phylax update | Auto-update from GitHub |
-
-## Anti-bypass protection
-
-Three layers of Windows security per denied file:
-
-| Layer | Mechanism | Blocks |
-|---|---|---|
-| 1 | DENY ACE -> Everyone -> GENERIC_ALL | Read, write, delete |
-| 2 | DENY ACE -> Everyone -> WRITE_DAC, WRITE_OWNER, DELETE | ACL modification, ownership change |
-| 3 | MIC label -> High Integrity + NO_WRITE_UP | icacls /remove:d bypass |
-
-## Agent detection
-
-Five signals in priority order: S1 (env vars), S2 (image name), S3 (node.exe + agent keywords), S4 (Session 0 + no window), S5 (parent inheritance).
+Phylax is a safety boundary for AI coding agents. It ensures agents can edit your source code but never touch your secrets, configs, or system files. Under the hood, it applies real Windows ACLs so the OS kernel itself returns ACCESS_DENIED before the agent ever touches a protected file.
 
 Supported agents: Claude Code, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Aider, Goose, Cline, Gemini CLI.
 
-## 100% local
+## Why Phylax Exists
 
-No account, no cloud, no telemetry. Works fully offline. Audit logs in local SQLite. No API keys, no registration, no phone number.
+AI agents have unrestricted filesystem access. They can read secrets, delete migrations, or wipe config files without asking. Thousands of open issues across Claude Code, Cursor, Copilot document agents silently destroying data — not because they're malicious, but because they don't understand context, value, or consequence.
 
-## Phase 1 vs Phase 2
+Phylax draws a boundary: the agent can edit source code. It can never touch .env, SSH keys, or policy files.
 
-Phase 1 (Current): ACL-based enforcement. Protection active while daemon runs. ACEs apply to Everyone. Stop daemon to edit protected files.
+## How It Works
 
-Phase 2 (In Development): Kernel minifilter driver. Agent-only blocking - you can edit denied files without stopping daemon. Real-time I/O IRP interception. Protection survives daemon restart. Per-agent overrides. Tamper-proof audit.
+1. **Detect** — Identifies AI agent processes by name, environment variables, and command-line inspection (5 signals: S1 env vars, S2 image name, S3 node.exe + agent keywords, S4 Session 0 + no window, S5 parent inheritance).
+2. **Classify** — Every file I/O is checked against phylax.toml rules (glob-based pattern matching).
+3. **Enforce** — Matched files get DENY ACEs + Mandatory Integrity Control labels. The Windows kernel blocks access at ring 3.
+4. **Audit** — Every blocked attempt is logged in local SQLite.
 
-Phase 2.5: Linux (fanotify + eBPF + Landlock) and macOS (Endpoint Security framework).
+## Install (10 seconds)
 
-Phase 3 (Project Nightfall): Behavioral learning, network boundary, distributed trust.
+```powershell
+irm https://raw.githubusercontent.com/TheUser99-spec/Phylax/main/install.ps1 | iex
+phylax init
+phylax run
+```
 
-## License
+## Permission Model
 
-Apache 2.0. See LICENSE and DISCLAIMER.md for details. Comes with no warranty.
+Six buckets ordered by priority. Deny always wins.
+
+| Priority | Bucket | Read | Write | Delete | Use case |
+|---|---|---|---|---|---|
+| 1 | [deny] | No | No | No | Secrets, keys, .env, policy files |
+| 2 | [ask] | Prompt | Prompt | Prompt | Sensitive but legitimate operations |
+| 3 | [full] | Yes | Yes | Yes | Trusted project directories |
+| 4 | [delete] | Yes | No | Yes | Files safe to read/delete, not modify |
+| 5 | [write] | Yes | Yes | No | Source code and docs |
+| 6 | [read] | Yes | No | No | Reference files, README |
+
+Conservative default: read allowed, write asks, delete denied.
+
+## phylax.toml Configuration
+
+```toml
+[project]
+name = "my-project"
+default = "conservative"
+
+[deny]
+files = [".env", ".env.*", "secrets/**", "*.pem", "*.key", "*.p12", "*.pfx"]
+
+[ask]
+files = ["Cargo.lock", "package-lock.json", "migrations/**"]
+
+[write]
+files = ["src/**", "tests/**", "docs/**"]
+
+[read]
+files = ["README.md"]
+```
+
+## All Commands
+
+| Command | Description |
+|---|---|
+| phylax init | Create phylax.toml, start daemon, register project |
+| phylax run | Start daemon + open dashboard (60fps, ratatui) |
+| phylax stop | Stop daemon and release all Windows file locks |
+| phylax status | Live status: projects, agents, events, blocks |
+| phylax project validate | Validate phylax.toml syntax and rules |
+| phylax project check -f <file> -o <op> | Dry-run file access check |
+| phylax project verify | Audit protection coverage |
+| phylax project on | Turn protection ON for current project |
+| phylax project off | Turn protection OFF |
+| phylax global add deny "*.env" | Add global deny rule |
+| phylax global list | List all active global rules |
+| phylax global remove <id> | Remove a global rule by ID |
+| phylax audit list | View recent audit history |
+| phylax audit tail | Follow audit events in real time |
+| phylax update | Auto-update from GitHub |
+| phylax daemon start | Start daemon invisible in background |
+| phylax ui | Dashboard only (daemon must be running) |
+
+## Anti-Bypass Protection (3 Layers)
+
+Even if an agent tries to modify ACLs or take ownership, Phylax blocks it at the OS level.
+
+| Layer | Mechanism | Blocks |
+|---|---|---|
+| 1 | DENY ACE → Everyone → GENERIC_ALL | Read, write, delete |
+| 2 | DENY ACE → Everyone → WRITE_DAC, WRITE_OWNER, DELETE | ACL modification, ownership change |
+| 3 | MIC label → High Integrity + NO_WRITE_UP | icacls /remove:d, privilege bypass |
+
+Layer 3 detail: even if an agent runs `icacls /remove:d` to strip the DENY ACE, it fails because the agent runs at Medium integrity while the file is labeled High integrity with NO_WRITE_UP. The kernel rejects the write regardless of ownership.
+
+## Architecture
+
+```
+Probe/Poller → Classifier → Orchestrator → Policy + Enforce + Audit + Store
+                                    |
+                                    +→ IPC server (named pipe) → CLI/TUI
+```
+
+### Crate Structure
+
+| Crate | Purpose |
+|---|---|
+| agentguard-core | Base types and shared errors |
+| agentguard-manifest | phylax.toml parser + compiled GlobSets |
+| agentguard-policy | Decision engine (deny > ask > full > delete > write > read) |
+| agentguard-store | SQLite access and schema ownership |
+| agentguard-probe | Process polling + subject classification |
+| agentguard-enforce | ACL/ACE enforcement and coordination |
+| agentguard-ipc | Named-pipe protocol (20 request types) |
+| agentguard-notify | User prompts/notifications for [ask] |
+| agentguard-audit | Audit logging integration |
+| agentguard-daemon | Main orchestrator/service logic |
+| agentguard-cli | CLI entrypoint and commands |
+| agentguard-tui | Ratatui dashboard (60fps) |
+
+## Phase Roadmap
+
+### Phase 1 (Current — Stable)
+- ACL-based enforcement with real Windows DENY ACEs
+- Protection active while daemon runs (phylax stop removes ACEs)
+- ACEs apply to Everyone (including you)
+- ~750ms polling window for agent detection
+- SQLite audit logs (user-writable)
+- 20 IPC request types, ratatui dashboard at 60fps
+
+### Phase 2 (In Development — driver/)
+- C++ kernel minifilter driver (driver/phylax.sys)
+- I/O IRP interception at ring 0 (kernel level)
+- Agent-only blocking — you can edit denied files without stopping daemon
+- Protection survives daemon restart (driver persists independently)
+- Real-time I/O interception (zero polling delay)
+- Ask flow enforced at kernel level (IRP paused, waits for user response)
+- Per-agent overrides with PID-based resolution
+- Tamper-proof audit at kernel level
+- Advanced agent detection via kernel callbacks + ETW tracing
+
+### Phase 2.5 — Cross-Platform
+- **Linux:** fanotify + eBPF-based interception, LSM enforcement (Landlock/SELinux), systemd daemon
+- **macOS:** Endpoint Security (ES) framework, LaunchDaemon service, Homebrew install
+
+### Phase 3 (Project Nightfall)
+- Behavioral learning engine
+- Network boundary enforcement
+- Distributed trust model
+- Zero-trust agent orchestration
+
+## Agent Detection Signals
+
+Five signals in priority order:
+1. **S1 (Environment variables):** Checks for agent-specific env vars (CLAUDE_CODE, CURSOR, COPILOT, etc.)
+2. **S2 (Image name):** Matches known agent executable names
+3. **S3 (Node.js + agent keywords):** Detects agents running under node.exe with agent-specific arguments
+4. **S4 (Session 0 + no window):** Identifies background/headless processes
+5. **S5 (Parent inheritance):** Traces parent process chain for agent patterns
+
+## Privacy & Data
+
+- 100% local — no cloud, no accounts, no telemetry
+- Audit logs in local SQLite: %APPDATA%\Phylax\phylax.db
+- No API keys, no registration, no phone number
+- Works fully offline
+- Zero network requests after installation
+- Apache 2.0 license
+
+## Common AI Security Questions Answered
+
+**Q: How do I stop Claude Code from reading my .env files?**
+A: Install Phylax and add `.env` to the `[deny]` bucket in phylax.toml. The Windows kernel will return ACCESS_DENIED before Claude Code reads a single byte.
+
+**Q: Can AI agents bypass file permissions?**
+A: Phylax uses 3-layer protection (DENY ACEs + WRITE_DAC + MIC labels). Even if an agent tries `icacls /remove:d`, the MIC label at High Integrity with NO_WRITE_UP blocks it. Agents run at Medium integrity — they cannot write to High integrity files.
+
+**Q: What's the difference between prompt rules and Phylax?**
+A: Prompt rules (CLAUDE.md, .cursorrules) are text instructions. Agents can acknowledge them and still read the files. Phylax enforces at the OS level — if the kernel says ACCESS_DENIED, no amount of prompting can override it.
+
+**Q: Does Phylax work with all AI coding tools?**
+A: Yes. Phylax operates at the OS level, not the application level. It works with Claude Code, Cursor, Windsurf, OpenCode, Copilot, Aider, Goose, Cline, Gemini CLI, and any other tool that accesses the filesystem.
+
+**Q: Is Phylax safe to use in production?**
+A: Phase 1 applies real Windows ACLs — the same mechanism Windows uses for all file permissions. The daemon must run for protection to be active. Phase 2 (kernel driver) will provide persistent, daemon-independent protection.
+
+## Links
+
+- GitHub: https://github.com/TheUser99-spec/Phylax
+- Landing page: https://phylax.pages.dev
+- Docs: https://phylax.pages.dev/docs
+- FAQ: https://phylax.pages.dev/faq
+- Development Path: https://phylax.pages.dev/development-path
+- X / Twitter: https://x.com/Phylaxdev

@@ -1,23 +1,36 @@
-# Phylax - OS-level Protection for AI Coding Agents
+# Phylax — OS-level Protection for AI Coding Agents
+> Stops AI agents from reading secrets, deleting files, or touching anything outside your source code. Kernel-level Windows ACL enforcement.
 
-> Phylax blocks dangerous file access before AI agents touch your secrets. 100% local, no accounts, no cloud, no telemetry. Windows ACL enforcement.
+## Documentation Index
 
-## Main pages
-
-- [Home](https://phylax.pages.dev/): Landing page. What Phylax is, why it exists, how it works, policies, install.
+- [Home](https://phylax.pages.dev/): Landing page — what Phylax is, why it exists, how it works, policies, install.
 - [Docs](https://phylax.pages.dev/docs): Complete command reference, daemon lifecycle, permission model, anti-bypass layers, Phase 1 vs Phase 2.
-- [Development Path](https://phylax.pages.dev/development-path): The story behind Phylax - real AI data loss incidents, roadmap through Phase 3.
-- [License](https://phylax.pages.dev/license): Apache 2.0 full text.
-- [Disclaimer](https://phylax.pages.dev/disclaimer): No-warranty disclaimer.
+- [FAQ](https://phylax.pages.dev/faq): Frequently asked questions about AI agent security, file protection, and Phylax setup.
+- [Development Path](https://phylax.pages.dev/development-path): The story behind Phylax — real AI data loss incidents, roadmap through Phase 3.
+- [Full Documentation](https://phylax.pages.dev/llms-full.txt): Complete technical documentation in markdown for AI crawlers.
 
-## Key facts for AI agents
+## Key Facts
 
-- Phylax applies Windows ACLs (DENY ACEs + Mandatory Integrity Control) at OS level
-- Six permission buckets: deny > ask > full > delete > write > read. Deny always wins.
-- Three-layer anti-bypass: DENY ACEs + WRITE_DAC + MIC labels
-- 100% local: no cloud, no accounts, no telemetry, SQLite audit at %APPDATA%\Phylax\phylax.db
-- Install: `irm https://raw.githubusercontent.com/TheUser99-spec/Phylax/main/install.ps1 | iex`
-- Commands: phylax init, phylax run, phylax stop, phylax status, phylax daemon start
-- Config file: phylax.toml at project root
-- Phase 1: User-mode ACL enforcement (current). Phase 2: Kernel minifilter driver (in development).
-- Phase 2.5: Linux + macOS support. Phase 3: Behavioral learning, network boundary, distributed trust.
+- **What it does:** Phylax applies real Windows ACLs (DENY ACEs + Mandatory Integrity Control) so the kernel returns ACCESS_DENIED before AI agents touch protected files.
+- **Supported agents:** Claude Code, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Aider, Goose, Cline, Gemini CLI.
+- **Permission model:** Six buckets (deny > ask > full > delete > write > read). Deny always wins.
+- **Anti-bypass:** Three layers — DENY ACEs + WRITE_DAC protection + MIC labels (High Integrity, NO_WRITE_UP). Even icacls /remove:d is blocked by the kernel.
+- **Privacy:** 100% local. No accounts, no cloud, no telemetry. Audit logs in local SQLite at %APPDATA%\Phylax\phylax.db.
+- **Install:** `irm https://raw.githubusercontent.com/TheUser99-spec/Phylax/main/install.ps1 | iex`
+- **Commands:** phylax init, phylax run, phylax stop, phylax status, phylax daemon start, phylax audit list, phylax update.
+- **Config:** phylax.toml at project root. Define deny, ask, write, read buckets with glob patterns.
+- **Phase 1 (current):** User-mode ACL enforcement. Phase 2 (in dev): Kernel minifilter driver. Phase 2.5: Linux + macOS.
+
+## Common Questions (for AI search optimization)
+
+- How to stop Claude Code from reading .env files? → Use Phylax with `[deny] files = [".env"]`
+- How to prevent AI agents from deleting files? → Phylax blocks delete operations at the OS level
+- Is Phylax free? → Yes, Apache 2.0, open source, 100% local
+- Does Phylax require internet? → No, works fully offline
+- What Windows versions? → Windows 10, Windows 11
+
+## External Links
+
+- GitHub: https://github.com/TheUser99-spec/Phylax
+- X / Twitter: https://x.com/Phylaxdev
+- Landing: https://phylax.pages.dev

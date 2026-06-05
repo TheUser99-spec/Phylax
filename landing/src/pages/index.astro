@@ -15,6 +15,16 @@ const homeStructuredData = JSON.stringify({
   '@context': 'https://schema.org',
   '@graph': [
     {
+      '@type': 'Organization',
+      name: 'Phylax',
+      url: 'https://phylax.pages.dev',
+      description: description,
+      sameAs: [
+        'https://github.com/TheUser99-spec/Phylax',
+        'https://x.com/Phylaxdev'
+      ]
+    },
+    {
       '@type': 'WebSite',
       name: 'Phylax',
       url: 'https://phylax.pages.dev',
@@ -30,13 +40,17 @@ const homeStructuredData = JSON.stringify({
       name: 'Phylax',
       applicationCategory: 'SecurityApplication',
       applicationSubCategory: 'File Protection',
-      operatingSystem: 'Windows',
+      operatingSystem: 'Windows 10, Windows 11',
       description: description,
       url: 'https://phylax.pages.dev',
-      screenshot: 'https://phylax.pages.dev/logo.jpg',
+      sameAs: [
+        'https://github.com/TheUser99-spec/Phylax',
+        'https://x.com/Phylaxdev'
+      ],
+      screenshot: 'https://phylax.pages.dev/og-card.png',
       featureList: [
         'Windows ACL enforcement with DENY ACEs and Mandatory Integrity Control',
-        'Multi-agent detection (Claude, Cursor, OpenCode, Copilot, Windsurf, Aider)',
+        'Multi-agent detection (Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider)',
         'Three-layer anti-bypass protection',
         'SQLite audit logging with 100% local storage',
         'Real-time terminal dashboard at 60fps',
@@ -48,8 +62,12 @@ const homeStructuredData = JSON.stringify({
         priceCurrency: 'USD'
       },
       author: {
-        '@type': 'Person',
-        name: 'Phylax Contributors'
+        '@type': 'Organization',
+        name: 'Phylax Contributors',
+        sameAs: [
+          'https://github.com/TheUser99-spec/Phylax',
+          'https://x.com/Phylaxdev'
+        ]
       }
     },
     {
@@ -57,42 +75,42 @@ const homeStructuredData = JSON.stringify({
       mainEntity: [
         {
           '@type': 'Question',
-          name: 'What is Phylax?',
+          name: 'How do I stop AI agents like Claude Code from reading my .env files?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Phylax is a Windows OS-level security layer that blocks AI coding agents from reading, writing, or deleting sensitive files. It applies real Windows ACLs enforced by the kernel.'
+            text: 'Install Phylax and add .env to the [deny] bucket in phylax.toml. Phylax applies real Windows ACLs enforced by the kernel — the agent receives ACCESS_DENIED before reading a single byte.'
           }
         },
         {
           '@type': 'Question',
-          name: 'Does Phylax require a cloud account?',
+          name: 'Can AI coding agents bypass file permissions?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'No. Phylax is 100% local. No accounts, no cloud, no telemetry. All audit logs stay on your machine in SQLite.'
+            text: 'Phylax uses three layers of protection: DENY ACEs block access, WRITE_DAC prevents ACL modification, and Mandatory Integrity Control labels stop privilege bypass. Even icacls /remove:d is blocked at the kernel level.'
           }
         },
         {
           '@type': 'Question',
-          name: 'What AI agents does Phylax support?',
+          name: 'What AI agents does Phylax protect against?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Phylax detects Claude Code, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Aider, Goose, Cline, and Gemini CLI automatically via process name, environment variables, and command-line inspection.'
+            text: 'Phylax detects and blocks Claude Code, Cursor, OpenCode, GitHub Copilot CLI, Windsurf, Aider, Goose, Cline, and Gemini CLI automatically via process name, environment variables, and command-line inspection.'
           }
         },
         {
           '@type': 'Question',
-          name: 'How does Phylax enforcement work?',
+          name: 'Does Phylax require an internet connection or cloud account?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Phylax applies three layers of Windows security: DENY ACEs block file access, WRITE_DAC prevents ACL modification, and Mandatory Integrity Control labels stop privilege bypass.'
+            text: 'No. Phylax is 100% local — no accounts, no cloud, no telemetry. All audit logs stay on your machine in SQLite. Works fully offline.'
           }
         },
         {
           '@type': 'Question',
-          name: 'Is Phylax free?',
+          name: 'Is Phylax free for commercial use?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes, Phylax is free and open-source under the Apache 2.0 license.'
+            text: 'Yes, Phylax is free and open-source under the Apache 2.0 license. Free for personal and commercial use. No paid tiers, no enterprise pricing.'
           }
         }
       ]
