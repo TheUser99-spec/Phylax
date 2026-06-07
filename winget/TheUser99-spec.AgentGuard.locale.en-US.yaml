@@ -4,7 +4,7 @@ PackageVersion: 0.1.2
 PackageLocale: en-US
 Publisher: TheUser99-spec
 PackageName: AgentGuard
-License: MIT
+License: Apache-2.0
 ShortDescription: OS-level file safety for AI coding agents
 Description: |
   AgentGuard is a Windows security layer that sits between your filesystem and
@@ -19,6 +19,6 @@ Tags:
   - windows
   - cli
   - rust
-ReleaseNotesUrl: https://github.com/TheUser99-spec/AgentGuard/releases/tag/v0.1.2
-ManifestType: locale
+ReleaseNotesUrl: https://github.com/TheUser99-spec/Phylax/releases/tag/v0.1.2
+ManifestType: defaultLocale
 ManifestVersion: 1.12.0
