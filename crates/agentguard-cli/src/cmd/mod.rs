@@ -1,10 +1,15 @@
 pub mod agent;
 pub mod audit;
+pub mod compliance;
 pub mod daemon;
+pub mod dex;
 pub mod global;
 pub mod init;
+pub mod mcp;
 pub mod project;
 pub mod run;
+pub mod scan;
+pub mod serve;
 pub mod status;
 pub mod ui;
 pub mod update;

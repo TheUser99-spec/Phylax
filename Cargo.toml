@@ -13,6 +13,12 @@ members = [
     "crates/agentguard-cli",
     "crates/agentguard-tui",
     "crates/agentguard-mascot",
+    "crates/agentguard-compliance",
+    "crates/agentguard-cloud",
+    "crates/agentguard-scanner",
+    "crates/agentguard-web",
+    "crates/agentguard-mcp",
+    "crates/agentguard-dex",
 ]
 resolver = "2"
 
@@ -34,6 +40,12 @@ agentguard-enforce = { path = "crates/agentguard-enforce" }
 agentguard-ipc = { path = "crates/agentguard-ipc" }
 agentguard-notify = { path = "crates/agentguard-notify" }
 agentguard-audit = { path = "crates/agentguard-audit" }
+agentguard-compliance = { path = "crates/agentguard-compliance" }
+agentguard-cloud = { path = "crates/agentguard-cloud" }
+agentguard-scanner = { path = "crates/agentguard-scanner" }
+agentguard-web = { path = "crates/agentguard-web" }
+agentguard-mcp = { path = "crates/agentguard-mcp" }
+agentguard-dex = { path = "crates/agentguard-dex" }
 
 # External - portable (cross-platform)
 serde = { version = "1", features = ["derive"] }
@@ -68,6 +80,9 @@ windows-sys = { version = "0.59", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_RemoteDesktop",
     "Win32_System_Registry",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_System_WindowsProgramming",
 ] }
 ferrisetw = "0.1"
 ratatui = "0.29"

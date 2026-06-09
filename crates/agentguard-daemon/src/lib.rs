@@ -106,24 +106,52 @@ pub async fn run_daemon() {
     let file_watcher_state = Arc::clone(&state);
 
     let poller = ProcessPoller::new(state.tracker.classifier.clone(), state.tracker.clone());
-    let (poller_tx, mut poller_rx) = mpsc::channel(64);
+    let (poller_tx, _poller_rx) = mpsc::channel(64);
     let (poller_stop_tx, poller_stop_rx) = mpsc::channel(1);
 
-    let poller_task = tokio::spawn(poller.run(poller_tx, poller_stop_rx, 2000));
+    let poller_task = tokio::spawn(poller.run(poller_tx.clone(), poller_stop_rx, 2000));
 
-    let event_state = Arc::clone(&state);
-    tokio::spawn(async move {
-        while let Some(event) = poller_rx.recv().await {
-            if SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
-                break;
+    let etw_tx = poller_tx.clone();
+    let (etw_stop_tx, etw_stop_rx) = mpsc::channel(1);
+    let etw_task = tokio::spawn(agentguard_probe::run_etw_notifier(etw_tx, etw_stop_rx));
+
+    let cloud_store = state.store.clone();
+    let (cloud_stop_tx, _cloud_stop_rx) = mpsc::channel::<()>(1);
+    let cloud_stopped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let cloud_task: Option<tokio::task::JoinHandle<()>> =
+        match load_cloud_config() {
+            Some(config) if config.enabled => {
+                println!("Cloud audit sync: ACTIVE ({} -> {})",
+                    config.format.as_deref().unwrap_or("ocsf"), config.endpoint);
+                let engine = agentguard_cloud::CloudSyncEngine::new(
+                    (&*cloud_store).clone(),
+                    config,
+                );
+                let s = cloud_stopped.clone();
+                Some(tokio::spawn(async move {
+                    engine.run(s).await;
+                }))
             }
-            event_state.on_process_event(&event);
-        }
+            _ => {
+                println!("Cloud audit sync: DISABLED (add [audit.cloud] to phylax.toml)");
+                None
+            }
+        };
+
+    let web_store = (&*state.store).clone();
+    let web_port: u16 = std::env::var("PHYLAX_WEB_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(1977);
+    let _web_task = tokio::spawn(async move {
+        let server = agentguard_web::WebServer::new(web_store, web_port);
+        server.run().await;
     });
 
     println!("Phylax Daemon v{} started", env!("CARGO_PKG_VERSION"));
-    println!("Agent detection: ACTIVE (2000ms polling)");
+    println!("Agent detection: ACTIVE (ETW real-time + 2000ms polling)");
     println!("File watcher: ACTIVE (5000ms polling)");
+    println!("Web Dashboard: http://127.0.0.1:{web_port}");
 
     tokio::select! {
         result = server.run(shutdown_rx) => {
@@ -160,12 +188,28 @@ pub async fn run_daemon() {
 
     let _ = shutdown_tx.try_send(());
     drop(poller_stop_tx);
+    drop(etw_stop_tx);
+    cloud_stopped.store(true, Ordering::SeqCst);
+    drop(cloud_stop_tx);
     drop(watcher_shutdown_tx);
     drop(file_watcher_shutdown_tx);
 
     let _ = poller_task.await;
+    let _ = etw_task.await;
+    if let Some(t) = cloud_task { let _ = t.await; }
 
     println!("Phylax Daemon stopped.");
+}
+
+fn load_cloud_config() -> Option<agentguard_cloud::CloudSinkConfig> {
+    let cwd = std::env::current_dir().ok()?;
+    let phylax_path = cwd.join("phylax.toml");
+    if phylax_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&phylax_path) {
+            return agentguard_cloud::CloudSinkConfig::from_phylax_toml(&content);
+        }
+    }
+    None
 }
 
 pub fn is_daemon_running() -> bool {

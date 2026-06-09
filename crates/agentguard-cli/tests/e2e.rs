@@ -138,6 +138,7 @@ async fn e2e_check_file_access() {
         .send(IpcRequest::CheckFileAccess {
             path: std::env::temp_dir().join("test.e2e-check"),
             op: "read".to_string(),
+            agent_image: None,
         })
         .await
         .unwrap();

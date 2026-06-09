@@ -144,6 +144,7 @@ impl std::fmt::Display for AgentLabel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PolicySource {
+    Agent,
     Global,
     Project,
     Default,
@@ -152,6 +153,7 @@ pub enum PolicySource {
 impl PolicySource {
     pub fn as_str(&self) -> &'static str {
         match self {
+            PolicySource::Agent => "agent",
             PolicySource::Global => "global",
             PolicySource::Project => "project",
             PolicySource::Default => "default",

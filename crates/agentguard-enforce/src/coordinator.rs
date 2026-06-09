@@ -31,6 +31,7 @@ impl Enforcer {
 
     pub fn apply_project_protections(&mut self, manifest: &CompiledManifest) -> GuardResult<()> {
         let deny_paths = self.collect_paths_for_bucket(manifest, Bucket::Deny);
+        let ask_paths = self.collect_paths_for_bucket(manifest, Bucket::Ask);
         let write_paths = self.collect_paths_for_bucket(manifest, Bucket::Write);
         let delete_paths = self.collect_paths_for_bucket(manifest, Bucket::Delete);
         let read_paths = self.collect_paths_for_bucket(manifest, Bucket::Read);
@@ -38,7 +39,7 @@ impl Enforcer {
         let mut errors = Vec::new();
         let mut applied = 0usize;
 
-        for path in deny_paths.iter().chain(read_paths.iter()) {
+        for path in deny_paths.iter().chain(read_paths.iter()).chain(ask_paths.iter()) {
             match crate::ace::apply_deny_ace(path) {
                 Ok(()) => applied += 1,
                 Err(e) => errors.push((path.clone(), e)),
@@ -65,7 +66,7 @@ impl Enforcer {
         }
 
         let mut all = deny_paths;
-        all.extend(write_paths); all.extend(delete_paths); all.extend(read_paths);
+        all.extend(ask_paths); all.extend(write_paths); all.extend(delete_paths); all.extend(read_paths);
         self.cached_deny_paths = all;
 
         if applied == 0 && !errors.is_empty() {
@@ -75,6 +76,10 @@ impl Enforcer {
             });
         }
         Ok(())
+    }
+
+    pub fn collect_ask_paths(&self, manifest: &CompiledManifest) -> Vec<PathBuf> {
+        self.collect_paths_for_bucket(manifest, Bucket::Ask).into_iter().collect()
     }
 
     pub fn release_project_protections(&self) -> GuardResult<()> {

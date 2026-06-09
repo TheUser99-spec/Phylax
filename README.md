@@ -20,6 +20,9 @@
 - Blocks reads to `.env`, keys, secrets via DENY ACEs
 - Blocks deletes to `migrations/`, config, infra via MIC labels
 - Works with Claude Code, Cursor, Windsurf, Aider, OpenCode, Copilot
+- Web dashboard at `http://127.0.0.1:1977` + Terminal TUI (ratatui, 60fps)
+- Compliance reports: EU AI Act, NIST, ISO 42001, SOC 2
+- MCP server governance + DEX data exfiltration detection
 - Phase 1: user-mode ACL enforcement. Phase 2: kernel minifilter driver (in development)
 - Open source (Apache 2.0). 100% local. Seeking technical review.
 
@@ -170,15 +173,24 @@ files = ["README.md", "docs/**"]
 
 | Command | What it does |
 |---|---|
+| `phylax start` | Start daemon + open web dashboard |
 | `phylax init` | Create phylax.toml, start daemon, register project |
-| `phylax run` | Start daemon + open dashboard (60fps) |
+| `phylax run` | Start daemon + open terminal TUI (60fps) |
 | `phylax stop` | Stop daemon (releases file locks) |
 | `phylax status` | Live status: projects, agents, events, blocks |
 | `phylax project validate` | Validate phylax.toml syntax |
 | `phylax project check -f <f> -o <op>` | Dry-run file access check |
+| `phylax project check -f <f> -o <op> -a <agent>` | Per-agent dry-run check |
 | `phylax project verify` | Audit protection coverage |
 | `phylax global add deny "*.env"` | Add global deny rule |
+| `phylax agent add opencode deny "*.pem"` | Add per-agent rule |
+| `phylax compliance status` | EU AI Act / NIST / ISO 42001 / SOC 2 |
+| `phylax mcp discover` | Discover MCP servers on this system |
+| `phylax dex` | Data exfiltration risk check |
+| `phylax scan` | Scan for malicious AI model files |
 | `phylax audit list` | View audit history |
+| `phylax audit export` | Export audit logs (csv, json, ocsf, cef) |
+| `phylax audit verify-integrity` | Verify audit log hash chain |
 | `phylax update` | Auto-update from GitHub |
 
 ---
@@ -200,10 +212,16 @@ cargo build --workspace --release
 - [x] Windows ACL/ACE enforcement
 - [x] Three-layer anti-bypass (DENY ACEs + MIC labels)
 - [x] SQLite audit log
-- [x] IPC protocol (20 request types)
-- [x] Terminal dashboard (ratatui, 60fps)
-- [x] Unified CLI
+- [x] IPC protocol (30+ request types)
+- [x] Terminal dashboard (ratatui, 60fps) + Web dashboard
+- [x] Unified CLI with compliance, MCP, DEX, scanner commands
 - [x] Invisible daemon
+- [x] EU AI Act / NIST / ISO 42001 / SOC 2 compliance reports
+- [x] MCP server discovery and governance
+- [x] Data exfiltration detection (DEX)
+- [x] AI model file scanner (pickle, safetensors, gguf)
+- [x] Audit log hash-chain integrity verification
+- [x] Landing page + FAQ + tutorial + bilingual docs
 - [ ] Kernel minifilter driver (Phase 2)
 - [ ] Agent-only blocking (no need to stop daemon)
 - [ ] Cross-platform (macOS/Linux)

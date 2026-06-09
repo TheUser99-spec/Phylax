@@ -1,0 +1,10 @@
+[package]
+name = "agentguard-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "MCP (Model Context Protocol) server discovery and governance for Phylax"
+
+[dependencies]
+agentguard-core = { path = "../agentguard-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

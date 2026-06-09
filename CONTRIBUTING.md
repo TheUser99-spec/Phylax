@@ -101,24 +101,30 @@ cargo run -p agentguard-tui
 
 ```
 crates/
-  agentguard-core/      ← Base types and shared errors (no external deps)
-  agentguard-manifest/  ← phylax.toml parser + compiled GlobSets
-  agentguard-policy/    ← Decision engine (deny > ask > full > delete > write > read)
-  agentguard-store/     ← SQLite access and schema ownership
-  agentguard-probe/     ← Process polling + subject classification
-  agentguard-enforce/   ← ACL/ACE enforcement and coordination
-  agentguard-ipc/       ← Named-pipe protocol and client/server
-  agentguard-notify/    ← User prompts/notifications for [ask]
-  agentguard-audit/     ← Audit logging integration
-  agentguard-daemon/    ← Main orchestrator/service logic
-  agentguard-cli/       ← CLI entrypoint and commands
-  agentguard-tui/       ← Ratatui dashboard
-  agentguard-mascot/    ← Optional terminal mascot UI
+  agentguard-core/       <- Base types and shared errors (no external deps)
+  agentguard-manifest/   <- phylax.toml parser + compiled GlobSets
+  agentguard-policy/     <- Decision engine (deny > ask > full > delete > write > read)
+  agentguard-store/      <- SQLite access and schema ownership
+  agentguard-probe/      <- Process polling + subject classification
+  agentguard-enforce/    <- ACL/ACE enforcement and coordination
+  agentguard-ipc/        <- Named-pipe protocol and client/server
+  agentguard-notify/     <- User prompts/notifications for [ask]
+  agentguard-audit/      <- Audit logging integration
+  agentguard-daemon/     <- Main orchestrator/service logic
+  agentguard-cli/        <- CLI entrypoint and commands
+  agentguard-tui/        <- Ratatui dashboard
+  agentguard-mascot/     <- Optional terminal mascot UI
+  agentguard-compliance/ <- EU AI Act, NIST, ISO 42001, SOC 2 compliance
+  agentguard-cloud/      <- Cloud deployment helpers
+  agentguard-scanner/    <- AI model file scanner (pickle, safetensors, gguf)
+  agentguard-web/        <- Web dashboard (Axum) at http://127.0.0.1:1977
+  agentguard-mcp/        <- MCP server governance
+  agentguard-dex/        <- Data exfiltration detection
 
-driver/                 ← C++ minifilter (Phase 2, modify with caution)
-modules/                ← Phase 3/4 placeholders
-docs/                   ← Architecture docs and ADRs
-landing/                ← Astro landing page (phylax.pages.dev)
+driver/                  <- C++ minifilter (Phase 2, modify with caution)
+modules/                 <- Phase 3/4 placeholders
+docs/                    <- Architecture docs and ADRs
+landing/                 <- Astro landing page (phylax.pages.dev)
 ```
 
 ---

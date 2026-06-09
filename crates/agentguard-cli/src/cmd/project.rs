@@ -34,11 +34,11 @@ pub async fn validate(path: PathBuf) -> GuardResult<()> {
     Ok(())
 }
 
-pub async fn check(file: PathBuf, op: String) -> GuardResult<()> {
+pub async fn check(file: PathBuf, op: String, agent_image: Option<String>) -> GuardResult<()> {
     let abs = resolve_path_allow_missing(file);
 
     let client = IpcClient::new();
-    let result = client.check_file(abs, op).await?;
+    let result = client.check_file(abs, op, agent_image).await?;
 
     let (icon, color) = match &result.decision {
         agentguard_core::PolicyDecision::Allow => ("+", "\x1b[32m"),

@@ -10,9 +10,11 @@
 #![allow(unsafe_code)]
 
 pub mod classifier;
+pub mod etw;
 pub mod poller;
 pub mod tracker;
 
 pub use classifier::{ClassifierConfig, ProcessInfo, SubjectClassifier};
+pub use etw::run_etw_notifier;
 pub use poller::{ProcessEvent, ProcessPoller};
 pub use tracker::AgentSessionTracker;

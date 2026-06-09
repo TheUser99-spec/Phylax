@@ -47,7 +47,9 @@ At this point, phylax is running and protecting your project. Any AI agent that 
 |---------|-------------|
 | `phylax daemon start` | Start daemon in background (no console window, survives terminal close) |
 | `phylax stop` | Stop daemon and release all Windows file locks |
-| `phylax run` | Start daemon + open TUI dashboard together |
+| `phylax run` | Start daemon + open TUI dashboard together (60fps) |
+| `phylax serve` | Start daemon + open web dashboard at http://127.0.0.1:1977 |
+| `phylax start` | Alias for `phylax serve` |
 | `phylax ui` | Open TUI only (daemon must already be running) |
 
 ### Project Management
@@ -58,6 +60,7 @@ At this point, phylax is running and protecting your project. Any AI agent that 
 | `phylax status` | Show live status: projects, agents, events, blocks |
 | `phylax project validate` | Validate your `phylax.toml` syntax |
 | `phylax project check -f <file> -o <op>` | Dry-run: check what would happen if an agent tried `<op>` on `<file>` |
+| `phylax project check -f <f> -o <op> -a <agent>` | Per-agent dry-run check (e.g. `-a opencode`) |
 | `phylax project verify` | Audit effective protection coverage |
 | `phylax project on` | Turn protection ON for the current project |
 | `phylax project off` | Turn protection OFF for the current project |
@@ -70,12 +73,51 @@ At this point, phylax is running and protecting your project. Any AI agent that 
 | `phylax global list` | List all global rules |
 | `phylax global remove <id>` | Remove a global rule |
 
+### Per-Agent Rules
+
+| Command | Description |
+|---------|-------------|
+| `phylax agent add opencode deny "*.pem"` | Add a deny rule for a specific agent |
+| `phylax agent list` | List all per-agent rules |
+| `phylax agent remove <id>` | Remove a per-agent rule |
+
+### Compliance
+
+| Command | Description |
+|---------|-------------|
+| `phylax compliance list` | List available compliance standards |
+| `phylax compliance status` | Check live compliance status (requires daemon) |
+| `phylax compliance evaluate` | Offline compliance evaluation |
+| `phylax compliance generate` | Generate compliance report (json/md) |
+
+### MCP Governance
+
+| Command | Description |
+|---------|-------------|
+| `phylax mcp discover` | Discover MCP servers on this system |
+| `phylax mcp list` | List MCP governance rules |
+| `phylax mcp add <name> <action>` | Add MCP rule (deny/ask/read) |
+
+### DEX (Data Exfiltration)
+
+| Command | Description |
+|---------|-------------|
+| `phylax dex` | Check data exfiltration risk (network egress, USB devices) |
+
+### AI Model Scanner
+
+| Command | Description |
+|---------|-------------|
+| `phylax scan [<path>]` | Scan directory for malicious AI model files (pickle, safetensors, gguf) |
+
 ### Audit & Monitoring
 
 | Command | Description |
 |---------|-------------|
 | `phylax audit list` | View audit history (blocked attempts, allowed operations) |
 | `phylax audit tail` | Follow audit events in real time |
+| `phylax audit export --format json` | Export audit logs (csv/txt/json/ocsf/cef) |
+| `phylax audit verify-integrity` | Verify cryptographic integrity of the audit log hash chain |
 
 ### Updates
 
@@ -311,6 +353,7 @@ crates/
   agentguard-daemon/       Main orchestrator
   agentguard-cli/          CLI (clap)
   agentguard-tui/          Dashboard (ratatui, 60fps)
+  agentguard-mascot/        Optional terminal mascot UI
 
 driver/
   phylax.sys           Phase 2 kernel minifilter (C++)

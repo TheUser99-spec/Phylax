@@ -94,6 +94,7 @@ Use `phylax project verify` to inspect and fix, or re-run with `--allow-unhealth
     println!("  The daemon will reload automatically when you save changes.");
     println!();
     println!("  phylax status              -> view state");
+    println!("  phylax serve               -> open web dashboard");
     println!("  phylax project check ...   -> dry-run an operation");
 
     Ok(())

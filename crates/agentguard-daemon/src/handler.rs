@@ -1,8 +1,10 @@
 use agentguard_core::Bucket;
 use agentguard_core::{FileOp, GuardResult, PolicyDecision};
 use agentguard_ipc::{
-    ActiveAgent, AgentRuleInfo, AgentRulesListData, AgentStat, AuditEventView, DaemonStatus,
-    DashboardStats, FileCheckResult, GlobalRuleInfo, GlobalRulesListData, IpcRequest, IpcResponse,
+    ActiveAgent, AgentRuleInfo, AgentRulesListData, AgentStat, AuditEventsData,
+    AuditEventView, ComplianceGapData, ComplianceReportData, ComplianceStatusData, DaemonStatus,
+    DashboardStats, DexStatusData, FileCheckResult, GlobalRuleInfo, GlobalRulesListData,
+    IntegrityReportData, IpcRequest, IpcResponse, McpDiscoveryData, McpRulesListData,
     PolicyData, PolicySummary, ProjectInfo, ProtectionPathHealth, ProtectionReportData,
     ValidationResult,
 };
@@ -159,7 +161,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
             }))
         }
 
-        IpcRequest::CheckFileAccess { path, op } => {
+        IpcRequest::CheckFileAccess { path, op, agent_image } => {
             let file_op = match op.as_str() {
                 "read" => FileOp::Read,
                 "write" => FileOp::Write,
@@ -173,7 +175,7 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
 
             let decision = match evaluate_manifest_dry_run(&path, &file_op)? {
                 Some(d) => d,
-                None => state.evaluate_access_dry_run(&path, &file_op)?,
+                None => state.evaluate_access_for_agent(&path, &file_op, agent_image.as_deref())?,
             };
 
             Ok(IpcResponse::FileCheck(FileCheckResult {
@@ -317,7 +319,12 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
         }
 
         IpcRequest::RemoveAgentRule { id } => {
+            let before = state.store.list_agent_rules(None).map(|r| r.len()).unwrap_or(0);
             state.remove_agent_rule(id)?;
+            let after = state.store.list_agent_rules(None).map(|r| r.len()).unwrap_or(0);
+            if before == after {
+                return Err(agentguard_core::GuardError::IpcError(format!("Agent rule id={id} not found")));
+            }
             state.system_msg("info", &format!("Agent rule removed: id={id}"));
             Ok(IpcResponse::Ok)
         }
@@ -391,6 +398,173 @@ fn handle_inner(state: Arc<DaemonState>, req: IpcRequest) -> GuardResult<IpcResp
                 effective_deny_paths: effective,
                 unhealthy_paths,
                 warnings,
+            }))
+        }
+
+        IpcRequest::GetComplianceStatus { standard } => {
+            let (total, blocks) = state.store.count_events_today().unwrap_or((0, 0));
+            let (_stat_total, _stat_blocks, _stat_allows, stat_asks) = state.store.stats_today().unwrap_or((0, 0, 0, 0));
+            let active = state.store.active_sessions().map(|v| v.len() as u64).unwrap_or(0);
+            let engine = agentguard_compliance::ComplianceEngine::with_data(
+                agentguard_compliance::AuditCounts {
+                    total_events: total,
+                    deny_count: blocks,
+                    ask_count: stat_asks,
+                    active_agents: active,
+                },
+                state.list_projects().iter().map(|p| p.display().to_string()).collect(),
+                false,
+            );
+            let report = engine.evaluate(&standard);
+            let gaps: Vec<ComplianceGapData> = engine.check_gaps(&standard).into_iter().map(|g| ComplianceGapData {
+                article: g.article, control_id: g.control_id, description: g.description,
+                remediation: g.remediation, severity: g.severity.as_str().to_string(),
+            }).collect();
+            let controls_impl: usize = report.articles.iter().map(|a| a.controls_implemented).sum();
+            let controls_part: usize = report.articles.iter().map(|a| a.controls_partial).sum();
+            let controls_miss: usize = report.articles.iter().map(|a| a.controls_missing).sum();
+            Ok(IpcResponse::ComplianceStatus(ComplianceStatusData {
+                standard: report.standard,
+                overall_status: report.overall_status.as_str().to_string(),
+                articles_count: report.articles.len(),
+                controls_implemented: controls_impl,
+                controls_partial: controls_part,
+                controls_missing: controls_miss,
+                gaps,
+            }))
+        }
+
+        IpcRequest::GetComplianceReport { standard, format: _format } => {
+            let (total, _blocks) = state.store.count_events_today().unwrap_or((0, 0));
+            let engine = agentguard_compliance::ComplianceEngine::with_data(
+                agentguard_compliance::AuditCounts {
+                    total_events: total, deny_count: 0, ask_count: 0, active_agents: 0,
+                },
+                state.list_projects().iter().map(|p| p.display().to_string()).collect(),
+                false,
+            );
+            let report = engine.evaluate(&standard);
+            let report_json = serde_json::to_string_pretty(&report).unwrap_or_else(|e| format!("{{\"error\": \"serialization failed: {}\"}}", e));
+            Ok(IpcResponse::ComplianceReport(ComplianceReportData {
+                standard: report.standard,
+                generated_at: report.generated_at,
+                overall_status: report.overall_status.as_str().to_string(),
+                report_json,
+            }))
+        }
+
+        IpcRequest::GetAuditEvents { cursor: _, limit, filter: _ } => {
+            let events = state.store.recent_audit_events(limit as usize).unwrap_or_default();
+            let count = events.len() as u64;
+            let json = serde_json::to_string_pretty(&events).unwrap_or_else(|_| "[]".to_string());
+            Ok(IpcResponse::AuditEvents(AuditEventsData {
+                events: json,
+                next_cursor: None,
+                has_more: false,
+                event_count: count,
+            }))
+        }
+
+        IpcRequest::ExportAuditLog { format, filter: _, limit } => {
+            let max = limit.unwrap_or(1000).min(10000);
+            let events = state.store.recent_audit_events(max).unwrap_or_default();
+            let host = std::env::var("COMPUTERNAME")
+                .or_else(|_| std::env::var("HOSTNAME"))
+                .unwrap_or_else(|_| "unknown".to_string());
+            let count = events.len() as u64;
+            let output = match format.as_str() {
+                "ocsf" => agentguard_audit::formats::events_to_ocsf(&events, &host),
+                "cef" => agentguard_audit::formats::events_to_cef(&events),
+                _ => serde_json::to_string_pretty(&events).unwrap_or_else(|_| "[]".to_string()),
+            };
+            Ok(IpcResponse::AuditEvents(AuditEventsData {
+                events: output,
+                next_cursor: None,
+                has_more: false,
+                event_count: count,
+            }))
+        }
+
+        IpcRequest::VerifyAuditIntegrity => {
+            let report = state.store.verify_audit_integrity()?;
+            Ok(IpcResponse::AuditIntegrity(IntegrityReportData {
+                total_events: report.total_events,
+                verified_events: report.verified_events,
+                tampered_events: report.tampered_events,
+                chain_intact: report.chain_intact,
+                first_hash: report.first_hash,
+                last_hash: report.last_hash,
+            }))
+        }
+
+        IpcRequest::DiscoverMcpServers => {
+            let report = agentguard_mcp::discover_mcp_servers();
+            let servers_json = serde_json::to_string_pretty(&report.servers).unwrap_or_else(|_| "[]".into());
+            Ok(IpcResponse::McpDiscovery(McpDiscoveryData {
+                servers_found: report.servers_found,
+                config_files_scanned: report.config_files_scanned,
+                config_files_found: report.config_files_found,
+                servers_json,
+            }))
+        }
+
+        IpcRequest::GetMcpRules => {
+            let rules: Vec<serde_json::Value> = state.store.list_global_rules()
+                .unwrap_or_default()
+                .iter()
+                .filter(|r| r.pattern.starts_with(".mcp") || r.pattern.starts_with(".claude/") || r.pattern.starts_with(".cursor/") || r.pattern.starts_with(".gemini/"))
+                .map(|r| serde_json::json!({
+                    "id": r.id,
+                    "bucket": r.bucket.to_string(),
+                    "pattern": r.pattern,
+                    "created_at": r.created.timestamp(),
+                }))
+                .collect();
+            let rules_json = serde_json::to_string_pretty(&rules).unwrap_or_else(|_| "[]".into());
+            Ok(IpcResponse::McpRulesList(McpRulesListData { rules_json }))
+        }
+
+        IpcRequest::AddMcpRule { server_name, action } => {
+            let bucket = match action.as_str() {
+                "deny" => Bucket::Deny,
+                "ask" => Bucket::Ask,
+                "read" => Bucket::Read,
+                other => return Err(agentguard_core::GuardError::IpcError(
+                    format!("Invalid MCP action: '{other}'. Use: deny, ask, read")
+                )),
+            };
+            if server_name.is_empty() {
+                return Err(agentguard_core::GuardError::IpcError("Server name cannot be empty".into()));
+            }
+            let pattern = format!("**/{server_name}");
+            state.add_global_rule(bucket, &pattern)?;
+            Ok(IpcResponse::Ok)
+        }
+
+        IpcRequest::RemoveMcpRule { id } => {
+            state.remove_global_rule(id)?;
+            Ok(IpcResponse::Ok)
+        }
+
+        IpcRequest::CheckDexStatus => {
+            let pids: Vec<u32> = state.store.active_sessions()
+                .unwrap_or_default()
+                .iter()
+                .map(|s| s.pid)
+                .collect();
+            let mut monitor = agentguard_dex::DexMonitor::new();
+            for pid in &pids {
+                monitor.track_agent(*pid);
+            }
+            let result = monitor.check_all();
+            let report_json = serde_json::to_string_pretty(&result).unwrap_or_else(|_| "{}".into());
+            Ok(IpcResponse::DexStatus(DexStatusData {
+                total_connections: result.total_connections,
+                suspicious_connections: result.suspicious_connections,
+                active_agents_online: result.active_agents_online.len(),
+                usb_devices: result.usb_devices.len(),
+                risk_level: result.risk_level.as_str().to_string(),
+                report_json,
             }))
         }
     }

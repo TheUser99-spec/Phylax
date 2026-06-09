@@ -11,6 +11,8 @@ path = "src/main.rs"
 agentguard-core.workspace = true
 agentguard-manifest.workspace = true
 agentguard-ipc.workspace = true
+agentguard-compliance.workspace = true
+agentguard-scanner.workspace = true
 agentguard-daemon = { path = "../agentguard-daemon" }
 agentguard-tui = { path = "../agentguard-tui" }
 chrono.workspace = true

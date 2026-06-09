@@ -52,6 +52,31 @@ pub async fn list(limit: usize) -> GuardResult<()> {
 }
 
 pub async fn export_logs(format: String, output: PathBuf, limit: Option<usize>) -> GuardResult<()> {
+    match format.as_str() {
+        "ocsf" | "cef" | "json" => {
+            use agentguard_ipc::IpcRequest;
+            let client = IpcClient::new();
+            let response = client.send(IpcRequest::ExportAuditLog {
+                format: format.clone(),
+                filter: None,
+                limit,
+            }).await?;
+            match response {
+                agentguard_ipc::IpcResponse::AuditEvents(data) => {
+                    std::fs::write(&output, &data.events)
+                        .map_err(|e| GuardError::IpcError(format!("Cannot write {}: {e}", output.display())))?;
+                    println!("Exported {} events to {} (format: {})", data.event_count, output.display(), format);
+                    Ok(())
+                }
+                agentguard_ipc::IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
+                other => Err(GuardError::IpcError(format!("unexpected: {other:?}"))),
+            }
+        }
+        _ => export_legacy(format, output, limit).await,
+    }
+}
+
+async fn export_legacy(format: String, output: PathBuf, limit: Option<usize>) -> GuardResult<()> {
     let client = IpcClient::new();
     let status = client
         .get_status()
@@ -130,6 +155,42 @@ pub fn db_path() -> GuardResult<()> {
     println!("  sqlite3 {} \"SELECT * FROM audit_events LIMIT 10;\"", path.display());
     println!();
     println!("Or open in DB Browser for SQLite (https://sqlitebrowser.org/)");
-    println!("  File → Open Database → {}", path.display());
+    println!("  File \u{2192} Open Database -> {}", path.display());
     Ok(())
+}
+
+pub async fn verify_integrity() -> GuardResult<()> {
+    use agentguard_ipc::IpcRequest;
+    let client = IpcClient::new();
+    let response = client.send(IpcRequest::VerifyAuditIntegrity).await?;
+    match response {
+        agentguard_ipc::IpcResponse::AuditIntegrity(report) => {
+            println!("\n  === Audit Hash-Chain Integrity ===\n");
+            println!("  Total events    : {}", report.total_events);
+            println!("  Verified events : {}", report.verified_events);
+            println!("  Tampered events : {}", report.tampered_events);
+            println!();
+
+            if report.total_events == 0 {
+                println!("  \x1b[33mChain: EMPTY \u{2014} no audit events recorded yet\x1b[0m");
+            } else if report.chain_intact {
+                println!("  \x1b[32mChain: INTACT\x1b[0m");
+            } else {
+                println!("  \x1b[31mChain: BROKEN \u{2014} {} event(s) tampered!\x1b[0m", report.tampered_events);
+            }
+
+            if !report.first_hash.is_empty() {
+                println!("  Root hash : {}", report.first_hash);
+            }
+            if !report.last_hash.is_empty() {
+                println!("  Head hash : {}", report.last_hash);
+            }
+            println!();
+            Ok(())
+        }
+        agentguard_ipc::IpcResponse::Error { message } => {
+            Err(agentguard_core::GuardError::IpcError(message))
+        }
+        other => Err(agentguard_core::GuardError::IpcError(format!("unexpected: {other:?}"))),
+    }
 }

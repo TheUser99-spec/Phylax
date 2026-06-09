@@ -8,8 +8,9 @@ mod cmd;
 #[derive(Parser)]
 #[command(
     name = "phylax",
-    about = "OS-level file safety for AI coding agents",
+    about = "OS-level file safety for AI coding agents — web dashboard at http://127.0.0.1:1977",
     version = env!("CARGO_PKG_VERSION"),
+    after_help = "QUICK START:\n  phylax start                          Start daemon + open dashboard in browser\n  phylax init                            Initialize project protection\n\nCORE:\n  phylax status                          Daemon status and watched projects\n  phylax project show|on|off|verify      Project protection management\n  phylax agent add|remove|list           Per-agent rules\n  phylax global add|remove|list          Global rules\n\nCOMPLIANCE:\n  phylax compliance list|evaluate|generate  EU AI Act, NIST, ISO 42001, SOC 2\n\nAUDIT:\n  phylax audit list|export|verify-integrity  Audit events + hash-chain integrity\n\nMCP:\n  phylax mcp discover|add|remove|list    MCP server governance\n\nDEX:\n  phylax dex                             Data exfiltration check\n\nSCANNER:\n  phylax project check -f <file> -o <op>  Dry-run file access check\n"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -55,15 +56,45 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: AgentCommands,
     },
+    /// EU AI Act, NIST, ISO 42001, SOC 2 compliance evidence & reports
+    Compliance {
+        #[command(subcommand)]
+        cmd: ComplianceCommands,
+    },
+    /// Discover and govern MCP (Model Context Protocol) servers
+    Mcp {
+        #[command(subcommand)]
+        cmd: McpCommands,
+    },
+    /// Check data exfiltration risk (network egress, USB devices)
+    Dex,
     /// Open the TUI dashboard (daemon must be running)
     Ui,
-    /// Start daemon + TUI together
+    /// Start daemon + open TUI dashboard together
     Run,
+    /// Start daemon + open web dashboard in browser
+    Serve {
+        /// Dashboard port (default: 1977)
+        #[arg(long, short)]
+        port: Option<u16>,
+    },
+    /// Quick start: daemon + web dashboard (alias for `phylax serve`)
+    Start {
+        /// Dashboard port (default: 1977)
+        #[arg(long, short)]
+        port: Option<u16>,
+    },
     /// Check for and install updates from GitHub
     Update {
         /// Only check, don't install
         #[arg(long)]
         check: bool,
+    },
+    /// Scan directory for malicious AI model files (pickle, safetensors, gguf)
+    Scan {
+        /// Directory to scan (default: current)
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
 }
 
@@ -80,6 +111,8 @@ pub enum ProjectCommands {
         file: PathBuf,
         #[arg(long, short, value_parser = ["read", "write", "delete"])]
         op: String,
+        #[arg(long, short = 'a')]
+        agent: Option<String>,
     },
     /// Remove project from daemon watch
     Unregister {
@@ -145,7 +178,7 @@ pub enum AuditCommands {
     },
     /// Export audit logs to a file
     Export {
-        /// Output format: csv or txt
+        /// Output format: csv, txt, json, ocsf, cef
         #[arg(long, short, default_value = "csv")]
         format: String,
         /// Output file path
@@ -157,6 +190,8 @@ pub enum AuditCommands {
     },
     /// Show the audit database path
     Db,
+    /// Verify cryptographic integrity of the audit log hash chain
+    VerifyIntegrity,
 }
 
 #[derive(Subcommand)]
@@ -180,6 +215,54 @@ pub enum AgentCommands {
     },
 }
 
+#[derive(Subcommand)]
+pub enum ComplianceCommands {
+    /// List available compliance standards
+    List,
+    /// Show compliance status against a standard (requires daemon)
+    Status {
+        #[arg(long, short)]
+        standard: Option<String>,
+    },
+    /// Evaluate compliance offline (no daemon required)
+    Evaluate {
+        #[arg(long, short)]
+        standard: Option<String>,
+    },
+    /// Generate compliance report via daemon
+    Generate {
+        #[arg(long, short)]
+        standard: Option<String>,
+        #[arg(long, short, default_value = "json")]
+        format: String,
+        #[arg(long, short)]
+        output: Option<String>,
+    },
+    /// Check for compliance gaps
+    CheckGaps {
+        #[arg(long, short)]
+        standard: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum McpCommands {
+    /// Discover all MCP servers on this system
+    Discover,
+    /// List MCP governance rules
+    List,
+    /// Add a rule for an MCP server
+    Add {
+        /// Server name
+        name: String,
+        /// Action: deny, ask, read
+        #[arg(value_parser = ["deny", "ask", "read"])]
+        action: String,
+    },
+    /// Remove an MCP governance rule by ID
+    Remove { id: i64 },
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -192,7 +275,7 @@ async fn main() {
         Commands::Stop => cmd::daemon::stop().await,
         Commands::Project { cmd } => match cmd {
             ProjectCommands::Validate { path } => cmd::project::validate(path).await,
-            ProjectCommands::Check { file, op } => cmd::project::check(file, op).await,
+            ProjectCommands::Check { file, op, agent } => cmd::project::check(file, op, agent).await,
             ProjectCommands::Unregister { path } => cmd::project::unregister(path).await,
             ProjectCommands::Show => cmd::project::show().await,
             ProjectCommands::Off { path } => cmd::project::off(path).await,
@@ -215,6 +298,7 @@ async fn main() {
             AuditCommands::List { limit } => cmd::audit::list(limit).await,
             AuditCommands::Export { format, output, limit } => cmd::audit::export_logs(format, output, limit).await,
             AuditCommands::Db => cmd::audit::db_path(),
+            AuditCommands::VerifyIntegrity => cmd::audit::verify_integrity().await,
         },
         Commands::Agent { cmd } => match cmd {
             AgentCommands::Add {
@@ -225,9 +309,26 @@ async fn main() {
             AgentCommands::Remove { id } => cmd::agent::remove(id).await,
             AgentCommands::List { image } => cmd::agent::list(image).await,
         },
+        Commands::Compliance { cmd } => match cmd {
+            ComplianceCommands::List => { cmd::compliance::list_standards(); Ok(()) }
+            ComplianceCommands::Status { standard } => cmd::compliance::status(standard).await,
+            ComplianceCommands::Evaluate { standard } => cmd::compliance::evaluate(standard).await,
+            ComplianceCommands::Generate { standard, format, output } => cmd::compliance::generate(standard, Some(format), output).await,
+            ComplianceCommands::CheckGaps { standard } => cmd::compliance::check_gaps(standard).await,
+        },
+        Commands::Mcp { cmd } => match cmd {
+            McpCommands::Discover => cmd::mcp::discover().await,
+            McpCommands::List => cmd::mcp::list_rules().await,
+            McpCommands::Add { name, action } => cmd::mcp::add_rule(name, action).await,
+            McpCommands::Remove { id } => cmd::mcp::remove_rule(id).await,
+        },
+        Commands::Dex => cmd::dex::status().await,
         Commands::Ui => cmd::ui::run().await,
         Commands::Run => cmd::run::run().await,
+        Commands::Serve { port } => cmd::serve::serve(port).await,
+        Commands::Start { port } => cmd::serve::serve(port).await,
         Commands::Update { check } => cmd::update::run(check).await,
+        Commands::Scan { path } => cmd::scan::run(path).await,
     };
     if let Err(e) = result {
         eprintln!("\x1b[31merror:\x1b[0m {e}");
@@ -334,9 +435,10 @@ mod tests {
         .unwrap();
         match cli.command {
             Commands::Project { cmd } => match cmd {
-                ProjectCommands::Check { file, op } => {
+                ProjectCommands::Check { file, op, agent } => {
                     assert_eq!(file, std::path::PathBuf::from("/test/.env"));
                     assert_eq!(op, "read");
+                    assert!(agent.is_none());
                 }
                 _ => panic!("expected Check"),
             },
@@ -351,9 +453,10 @@ mod tests {
                 .unwrap();
         match cli.command {
             Commands::Project { cmd } => match cmd {
-                ProjectCommands::Check { file, op } => {
+                ProjectCommands::Check { file, op, agent } => {
                     assert_eq!(file, std::path::PathBuf::from("/x"));
                     assert_eq!(op, "write");
+                    assert!(agent.is_none());
                 }
                 _ => panic!("expected Check"),
             },

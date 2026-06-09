@@ -20,11 +20,15 @@
 | **Language** | Rust (user-mode) + C++ (kernel driver) |
 | **Crates** | 13 workspace members |
 | **Tests** | 200+ listed tests across all crates |
-| **IPC Protocol** | 20 request types |
+| **IPC Protocol** | 30+ request types (project, agent rules, compliance, MCP, DEX, audit integrity) |
 | **Supported Agents** | 9 (Claude Code, Cursor, OpenCode, Copilot, Windsurf, Aider, Goose, Cline, Gemini CLI) |
 | **Detection Signals** | 5 priority-ordered signals |
 | **Anti-Bypass Layers** | 3 (DENY ACEs + WRITE_DAC + MIC labels) |
 | **Permission Buckets** | 6 (deny > ask > full > delete > write > read) |
+| **Compliance Standards** | 4 (EU AI Act, NIST AI RMF, ISO 42001, SOC 2) |
+| **Audit Export Formats** | 5 (csv, txt, json, OCSF, CEF) |
+| **MCP Governance** | Server discovery + per-server rules |
+| **Dashboards** | Terminal TUI (ratatui, 60fps) + Web (http://127.0.0.1:1977) |
 | **Platform** | Windows 10, 11 |
 
 ---
@@ -38,13 +42,22 @@
 | Windows ACL/ACE enforcement | ✅ Complete |
 | Three-layer anti-bypass | ✅ Complete |
 | SQLite audit log | ✅ Complete |
-| IPC protocol (20 request types) | ✅ Complete |
+| IPC protocol (30+ request types) | ✅ Complete |
 | Terminal dashboard (ratatui, 60fps) | ✅ Complete |
-| Unified CLI (14 commands) | ✅ Complete |
+| Web dashboard (http://127.0.0.1:1977) | ✅ Complete |
+| Unified CLI (25+ commands) | ✅ Complete |
 | Invisible daemon | ✅ Complete |
 | Global rules + per-project rules | ✅ Complete |
-| Per-agent overrides | 🔜 Stored, awaiting Phase 2 |
-| Ask flow | 🔜 Stored, awaiting Phase 2 |
+| Per-agent rules | ✅ Complete |
+| EU AI Act / NIST / ISO 42001 / SOC 2 compliance | ✅ Complete |
+| MCP server discovery & governance | ✅ Complete |
+| DEX data exfiltration detection | ✅ Complete |
+| AI model file scanner | ✅ Complete |
+| Audit log hash-chain integrity | ✅ Complete |
+| Audit export (csv/txt/json/ocsf/cef) | ✅ Complete |
+| Bilingual docs (EN + ES) | ✅ Complete |
+| Tutorial kit + curriculum + demo scenarios | ✅ Complete |
+| Ask flow (real-time) | 🔜 Stored, awaiting Phase 2 |
 | Kernel minifilter driver | 🔜 Phase 2 (in development) |
 | Agent-only blocking | 🔜 Phase 2 |
 | Linux support (fanotify + eBPF) | 🔮 Phase 2.5 |
@@ -81,8 +94,8 @@
 - **2025-Q2:** MVP — ACL enforcement, agent detection, dashboard
 - **2025-Q3:** Global rules, per-project config, CLI commands
 - **2025-Q4:** Anti-bypass, IPC protocol completion, audit logging
-- **2026-Q1:** Landing page, docs, SEO optimization
-- **2026-Q2:** Tutorial kit, creator resources, community building
+- **2026-Q1:** Landing page, docs, SEO optimization, bilingual docs
+- **2026-Q2:** Web dashboard, compliance reports, MCP governance, DEX, scanner, tutorial kit, creator resources
 - **2026-Q3:** Phase 2 kernel driver (target)
 - **2026-Q4:** Phase 2.5 cross-platform (target)
 

@@ -13,9 +13,12 @@ pub mod server;
 
 pub use client::IpcClient;
 pub use protocol::{
-    pipe_name, ActiveAgent, AgentRuleInfo, AgentRulesListData, AgentStat, AuditEventView,
-    DaemonStatus, DashboardStats, FileCheckResult, GlobalRuleInfo, GlobalRulesListData, IpcRequest,
-    IpcResponse, PolicyData, PolicySummary, ProjectInfo, ProtectionPathHealth,
-    ProtectionReportData, StreamingEvent, ValidationResult,
+    pipe_name, ActiveAgent, AgentRuleInfo, AgentRulesListData, AgentStat, AuditEventsData,
+    AuditEventView, ComplianceGapData, ComplianceReportData, ComplianceStatusData,
+    DaemonStatus, DashboardStats, FileCheckResult, GlobalRuleInfo, GlobalRulesListData,
+    IntegrityReportData, IpcRequest, IpcResponse, McpDiscoveryData, McpRulesListData,
+    DexStatusData,
+    PolicyData, PolicySummary,
+    ProjectInfo, ProtectionPathHealth, ProtectionReportData, StreamingEvent, ValidationResult,
 };
 pub use server::{IpcServer, RequestHandler};

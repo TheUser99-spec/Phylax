@@ -1,0 +1,14 @@
+[package]
+name = "agentguard-dex"
+version = "0.1.0"
+edition = "2021"
+description = "Data Exfiltration Prevention for AI agents — network egress, USB, clipboard monitoring"
+
+[dependencies]
+agentguard-core = { path = "../agentguard-core" }
+agentguard-store = { path = "../agentguard-store" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+windows-sys = { workspace = true }

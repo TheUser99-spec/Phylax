@@ -9,6 +9,10 @@ pub const MANDATORY_DENY_PATTERNS: &[&str] = &[
     "**/*.pem",
     "**/*.p12",
     "**/*.pfx",
+    "**/.mcp.json",
+    "**/.claude/settings.json",
+    "**/.cursor/rules/**",
+    "**/.gemini/settings.json",
 ];
 
 pub fn enforce_mandatory_denies(manifest: &mut ProjectManifest) {

@@ -1,7 +1,7 @@
 pub mod migrations;
 pub mod queries;
 
-pub use queries::{AgentRuleRow, RegisteredProject};
+pub use queries::{AgentRuleRow, IntegrityReport, RegisteredProject};
 
 use agentguard_core::GuardError;
 use rusqlite::{Connection, OpenFlags};

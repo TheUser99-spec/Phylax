@@ -14,26 +14,30 @@ Do not modify `driver/` unless explicitly requested.
 
 ```text
 crates/
-  agentguard-core/      <- Base types and shared errors (no external deps)
-  agentguard-manifest/  <- phylax.toml parser + compiled GlobSets + auto-discovery
-  agentguard-policy/    <- Decision engine (deny > ask > full > delete > write > read)
-  agentguard-store/     <- SQLite access and schema ownership
-  agentguard-probe/     <- Process polling + subject classification (Windows-focused)
-  agentguard-enforce/   <- ACL/ACE enforcement and coordination
-  agentguard-ipc/       <- Named-pipe protocol and client/server
-  agentguard-notify/    <- User prompts/notifications for [ask]
-  agentguard-audit/     <- Audit logging integration
-  agentguard-daemon/    <- Main orchestrator/service logic
-  agentguard-cli/       <- CLI entrypoint and commands
-  agentguard-tui/       <- Ratatui dashboard
-  agentguard-mascot/    <- Optional terminal mascot UI crate
-
-crates not in workspace members:
-  agentguard-spawn/     <- Standalone helper crate (present in repo, not listed in workspace members)
+  agentguard-core/       <- Base types and shared errors (no external deps)
+  agentguard-manifest/   <- phylax.toml parser + compiled GlobSets + auto-discovery
+  agentguard-policy/     <- Decision engine (deny > ask > full > delete > write > read)
+  agentguard-store/      <- SQLite access and schema ownership
+  agentguard-probe/      <- Process polling + subject classification (Windows-focused)
+  agentguard-enforce/    <- ACL/ACE enforcement and coordination
+  agentguard-ipc/        <- Named-pipe protocol and client/server
+  agentguard-notify/     <- User prompts/notifications for [ask]
+  agentguard-audit/      <- Audit logging integration
+  agentguard-daemon/     <- Main orchestrator/service logic
+  agentguard-cli/        <- CLI entrypoint and commands
+  agentguard-tui/        <- Ratatui dashboard
+  agentguard-mascot/     <- Optional terminal mascot UI crate
+  agentguard-compliance/ <- EU AI Act, NIST, ISO 42001, SOC 2 compliance
+  agentguard-cloud/      <- Cloud deployment helpers
+  agentguard-scanner/    <- AI model file scanner (pickle, safetensors, gguf)
+  agentguard-web/        <- Web dashboard (Axum) at http://127.0.0.1:1977
+  agentguard-mcp/        <- MCP (Model Context Protocol) server governance
+  agentguard-dex/        <- Data exfiltration detection (DEX)
+  agentguard-spawn/      <- Standalone helper crate (daemon spawn)
 
 modules/
-  agentguard-scanner/   <- Phase 3 placeholder
-  agentguard-team/      <- Phase 4 placeholder
+  agentguard-scanner/    <- Phase 3 placeholder
+  agentguard-team/       <- Phase 4 placeholder
 
 driver/
   C++ minifilter (Phase 2)
@@ -50,6 +54,7 @@ docs/adr/
 core <- manifest <- policy <- (enforce, audit, probe, notify, ipc) <- daemon
                                                               <- cli
                                                               <- tui
+                                              (compliance, scanner, mcp, dex, web, cloud)
 ```
 
 - `agentguard-core` must not depend on other workspace crates.
@@ -101,9 +106,9 @@ Default when no rule matches:
 
 ## IPC protocol snapshot
 
-Current protocol includes 20 request types in `agentguard-ipc` (`RegisterProject`, `UnregisterProject`, `ValidateProject`, `CheckFileAccess`, `GetStatus`, `Shutdown`, `ReloadPolicy`, `AskResponse`, global rule CRUD, protection toggle, event subscription, stats/policy queries, and agent rule CRUD).
+Current protocol includes 30+ request types in `agentguard-ipc` (`RegisterProject`, `UnregisterProject`, `ValidateProject`, `CheckFileAccess` (now supports per-agent via `agent_image`), `GetStatus`, `Shutdown`, `ReloadPolicy`, `AskResponse`, global rule CRUD, protection toggle, event subscription, stats/policy queries, agent rule CRUD, `GetComplianceStatus`, `GetComplianceReport`, `ExportAuditLog`, `GetAuditEvents`, `VerifyAuditIntegrity`, `DiscoverMcpServers`, `GetMcpRules`, `AddMcpRule`, `RemoveMcpRule`, `CheckDexStatus`).
 
-## Verified status (as tested on 2026-05-29)
+## Verified status (as tested on 2026-06-07)
 
 Workspace members from root `Cargo.toml`:
 - `agentguard-core`
@@ -119,6 +124,12 @@ Workspace members from root `Cargo.toml`:
 - `agentguard-cli`
 - `agentguard-tui`
 - `agentguard-mascot`
+- `agentguard-compliance`
+- `agentguard-cloud`
+- `agentguard-scanner`
+- `agentguard-web`
+- `agentguard-mcp`
+- `agentguard-dex`
 
 Test listing counts (`cargo test -p <crate> -- --list`):
 
@@ -127,13 +138,13 @@ Test listing counts (`cargo test -p <crate> -- --list`):
 | agentguard-core | 5 |
 | agentguard-manifest | 48 |
 | agentguard-policy | 8 |
-| agentguard-store | 16 |
+| agentguard-store | 20 |
 | agentguard-probe | 27 |
 | agentguard-enforce | 11 |
 | agentguard-ipc | 28 |
 | agentguard-notify | 1 |
 | agentguard-audit | 5 |
-| agentguard-daemon | 22 |
+| agentguard-daemon | 32 |
 | agentguard-cli | 38 |
 | agentguard-tui | 0 |
 | agentguard-mascot | 1 |
@@ -149,7 +160,7 @@ The landing page is an Astro 4 static site in `landing/`. It deploys to GitHub P
 - All internal links must use `/Phylax/` prefix for GitHub Pages
 - Build with `npm run build` from `landing/`
 
-## Verified status (as tested on 2026-05-29)
+## Verified status (as tested on 2026-06-07)
 
 Execution notes from this environment:
 - `cargo test --workspace` is currently not fully green in this shell context.
@@ -189,7 +200,9 @@ Probe/Poller -> Classifier -> Orchestrator -> Policy + Enforce + Audit + Store
 
 TUI tabs (current): Status, Agents, Projects, Events, Stats, Rules.
 
-CLI supports project operations, global rules, agent rules, status/audit, and daemon lifecycle management.
+CLI supports project operations, global rules, agent rules, status/audit, daemon lifecycle management, compliance (EU AI Act, NIST, ISO 42001, SOC 2), MCP server governance, DEX data exfiltration checks, and AI model file scanning.
+
+A web dashboard is also available at `http://127.0.0.1:1977` (`phylax serve` / `phylax start`).
 
 ## Security notes
 

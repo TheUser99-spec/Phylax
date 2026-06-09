@@ -265,7 +265,7 @@ async fn check_file_access_roundtrip() {
 
     let client = IpcClient::with_pipe(pipe);
     let result = client
-        .check_file(PathBuf::from("/test/.env"), "read".into())
+        .check_file(PathBuf::from("/test/.env"), "read".into(), Some("cursor.exe".into()))
         .await
         .expect("check_file should succeed");
 

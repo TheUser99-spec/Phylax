@@ -1,0 +1,13 @@
+[package]
+name = "agentguard-scanner"
+version = "0.1.0"
+edition = "2021"
+description = "Static analysis scanner for AI model files — detects malicious code in pickle, safetensors, gguf, onnx"
+
+[dependencies]
+agentguard-core = { path = "../agentguard-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

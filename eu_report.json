@@ -1,0 +1,116 @@
+{
+  "standard": "EU AI Act — High-Risk AI Systems",
+  "standard_version": "2024/1689",
+  "generated_at": "2026-06-06T19:35:11.016109700+00:00",
+  "overall_status": "Implemented",
+  "articles": [
+    {
+      "article": "Art. 4",
+      "title": "AI Literacy",
+      "applicable": true,
+      "controls_total": 1,
+      "controls_implemented": 1,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 9",
+      "title": "Risk Management System",
+      "applicable": true,
+      "controls_total": 4,
+      "controls_implemented": 4,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 10",
+      "title": "Data and Data Governance",
+      "applicable": true,
+      "controls_total": 2,
+      "controls_implemented": 2,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 11",
+      "title": "Technical Documentation",
+      "applicable": true,
+      "controls_total": 3,
+      "controls_implemented": 3,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 12",
+      "title": "Record-Keeping",
+      "applicable": true,
+      "controls_total": 3,
+      "controls_implemented": 3,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 14",
+      "title": "Human Oversight",
+      "applicable": true,
+      "controls_total": 3,
+      "controls_implemented": 3,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 15",
+      "title": "Accuracy, Robustness, Cybersecurity",
+      "applicable": true,
+      "controls_total": 4,
+      "controls_implemented": 4,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 19",
+      "title": "Automatically Generated Logs",
+      "applicable": true,
+      "controls_total": 2,
+      "controls_implemented": 2,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 25",
+      "title": "Responsibilities Along AI Value Chain",
+      "applicable": true,
+      "controls_total": 2,
+      "controls_implemented": 2,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    },
+    {
+      "article": "Art. 26",
+      "title": "Obligations of Deployers",
+      "applicable": true,
+      "controls_total": 3,
+      "controls_implemented": 3,
+      "controls_partial": 0,
+      "controls_missing": 0,
+      "gaps": []
+    }
+  ],
+  "evidence_summary": {
+    "total_audit_events": 0,
+    "deny_decisions": 0,
+    "ask_decisions": 0,
+    "active_agents_detected": 0,
+    "protected_projects": 0,
+    "integrity_chain_verified": false
+  }
+}

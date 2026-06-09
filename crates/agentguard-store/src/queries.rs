@@ -52,6 +52,7 @@ fn str_to_label(s: &str) -> Result<AgentLabel, GuardError> {
 
 fn str_to_source(s: &str) -> Result<PolicySource, GuardError> {
     match s {
+        "agent" => Ok(PolicySource::Agent),
         "global" => Ok(PolicySource::Global),
         "project" => Ok(PolicySource::Project),
         "default" => Ok(PolicySource::Default),
@@ -125,10 +126,39 @@ impl Store {
 
 impl Store {
     pub fn insert_audit_event(&self, event: &AuditEvent) -> Result<i64, GuardError> {
+        use sha2::{Sha256, Digest};
         let conn = self.lock()?;
+
+        let last_hash: Option<String> = conn
+            .query_row(
+                "SELECT event_hash FROM audit_events WHERE seq_no = (SELECT MAX(seq_no) FROM audit_events)",
+                [],
+                |row| row.get(0),
+            )
+            .ok();
+
+        let next_seq: i64 = conn
+            .query_row("SELECT COALESCE(MAX(seq_no), 0) + 1 FROM audit_events", [], |row| row.get(0))
+            .unwrap_or(1);
+
+        let event_json = serde_json::json!({
+            "pid": event.agent_pid,
+            "label": event.agent_label.as_str(),
+            "path": event.file_path.to_string_lossy(),
+            "op": event.operation.as_str(),
+            "decision": decision_str(&event.decision),
+            "source": event.source.as_str(),
+            "ts": event.timestamp.timestamp(),
+        });
+        let event_str = serde_json::to_string(&event_json).unwrap_or_default();
+
+        let prev = last_hash.as_deref().unwrap_or("genesis");
+        let combined = format!("{prev}:{event_str}");
+        let hash = format!("{:x}", Sha256::digest(combined.as_bytes()));
+
         conn.execute(
-            "INSERT INTO audit_events (agent_pid, agent_label, file_path, operation, decision, source, ts)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO audit_events (agent_pid, agent_label, file_path, operation, decision, source, ts, seq_no, prev_hash, event_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 event.agent_pid,
                 event.agent_label.as_str(),
@@ -137,6 +167,9 @@ impl Store {
                 decision_str(&event.decision),
                 event.source.as_str(),
                 dt_to_ts(&event.timestamp),
+                next_seq,
+                prev,
+                hash,
             ],
         )
         .map_err(|e| GuardError::Database(e.to_string()))?;
@@ -244,6 +277,16 @@ impl Store {
         conn.execute(
             "UPDATE agent_sessions SET ended_at = unixepoch() WHERE pid = ?1 AND ended_at IS NULL",
             params![pid],
+        )
+        .map_err(|e| GuardError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn expire_all_sessions(&self) -> Result<(), GuardError> {
+        let conn = self.lock()?;
+        conn.execute(
+            "UPDATE agent_sessions SET ended_at = unixepoch() WHERE ended_at IS NULL",
+            [],
         )
         .map_err(|e| GuardError::Database(e.to_string()))?;
         Ok(())
@@ -623,6 +666,95 @@ impl Store {
             })
             .collect())
     }
+
+    pub fn verify_audit_integrity(&self) -> Result<IntegrityReport, GuardError> {
+        use sha2::{Sha256, Digest};
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare("SELECT seq_no, prev_hash, event_hash, agent_pid, agent_label, file_path, operation, decision, source, ts, erased FROM audit_events WHERE seq_no IS NOT NULL ORDER BY seq_no")
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, u32>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, i64>(9)?,
+                    row.get::<_, i32>(10)?,
+                ))
+            })
+            .map_err(|e| GuardError::Database(e.to_string()))?;
+
+        let mut computed_prev = "genesis".to_string();
+        let mut verified = 0u64;
+        let mut tampered = 0u64;
+        let mut total = 0u64;
+        let mut first_event_hash = String::new();
+        let mut last_event_hash = String::new();
+
+        for row in rows {
+            let (_seq_no, _stored_prev, stored_hash, pid, label, path, op, decision, source, ts, erased) =
+                row.map_err(|e| GuardError::Database(e.to_string()))?;
+
+            if erased != 0 {
+                computed_prev = stored_hash;
+                continue;
+            }
+
+            total += 1;
+
+            let event_json = serde_json::json!({
+                "pid": pid,
+                "label": label,
+                "path": path,
+                "op": op,
+                "decision": decision,
+                "source": source,
+                "ts": ts,
+            });
+            let event_str = serde_json::to_string(&event_json).unwrap_or_default();
+            let combined = format!("{}:{event_str}", computed_prev);
+            let computed_hash = format!("{:x}", Sha256::digest(combined.as_bytes()));
+
+            if computed_hash == stored_hash {
+                verified += 1;
+                if total == 1 {
+                    first_event_hash = stored_hash.clone();
+                }
+                last_event_hash = stored_hash.clone();
+            } else {
+                tampered += 1;
+            }
+
+            computed_prev = stored_hash;
+        }
+
+        Ok(IntegrityReport {
+            total_events: total,
+            verified_events: verified,
+            tampered_events: tampered,
+            first_hash: first_event_hash,
+            last_hash: last_event_hash,
+            chain_intact: tampered == 0,
+        })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct IntegrityReport {
+    pub total_events: u64,
+    pub verified_events: u64,
+    pub tampered_events: u64,
+    pub first_hash: String,
+    pub last_hash: String,
+    pub chain_intact: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -969,5 +1101,76 @@ mod tests {
             .unwrap();
         assert_eq!(resp, "allow_once");
         assert_eq!(sid, session_id);
+    }
+
+    fn sample_event(pid: u32, path: &str, decision: &str) -> agentguard_core::AuditEvent {
+        use agentguard_core::{AgentLabel, FileOp, PolicyDecision, PolicySource};
+        use chrono::Utc;
+        agentguard_core::AuditEvent {
+            id: None,
+            agent_pid: pid,
+            agent_label: AgentLabel::Definite,
+            file_path: std::path::PathBuf::from(path),
+            operation: FileOp::Read,
+            decision: match decision {
+                "deny" => PolicyDecision::Deny,
+                "allow" => PolicyDecision::Allow,
+                _ => PolicyDecision::Deny,
+            },
+            source: PolicySource::Project,
+            timestamp: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn hash_chain_is_verifiable() {
+        let s = store();
+        s.insert_audit_event(&sample_event(1, "/test/.env", "deny")).unwrap();
+        s.insert_audit_event(&sample_event(2, "/test/key.pem", "deny")).unwrap();
+        s.insert_audit_event(&sample_event(3, "/test/src/main.rs", "allow")).unwrap();
+
+        let report = s.verify_audit_integrity().unwrap();
+        assert_eq!(report.total_events, 3);
+        assert_eq!(report.verified_events, 3);
+        assert_eq!(report.tampered_events, 0);
+        assert!(report.chain_intact);
+        assert!(!report.first_hash.is_empty());
+        assert!(!report.last_hash.is_empty());
+    }
+
+    #[test]
+    fn hash_chain_empty_is_valid() {
+        let s = store();
+        let report = s.verify_audit_integrity().unwrap();
+        assert_eq!(report.total_events, 0);
+    }
+
+    #[test]
+    fn hash_chain_single_event() {
+        let s = store();
+        s.insert_audit_event(&sample_event(1, "/test/.env", "deny")).unwrap();
+
+        let report = s.verify_audit_integrity().unwrap();
+        assert_eq!(report.total_events, 1);
+        assert_eq!(report.verified_events, 1);
+        assert!(report.chain_intact);
+    }
+
+    #[test]
+    fn hash_chain_detects_tampering() {
+        let s = store();
+        s.insert_audit_event(&sample_event(1, "/test/.env", "deny")).unwrap();
+        s.insert_audit_event(&sample_event(2, "/test/key.pem", "deny")).unwrap();
+
+        let conn = s.lock().unwrap();
+        conn.execute(
+            "UPDATE audit_events SET event_hash = 'tampered_hash' WHERE seq_no = 1",
+            [],
+        ).unwrap();
+        drop(conn);
+
+        let report = s.verify_audit_integrity().unwrap();
+        assert!(report.tampered_events > 0);
+        assert!(!report.chain_intact);
     }
 }

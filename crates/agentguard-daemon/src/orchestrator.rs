@@ -13,6 +13,8 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::{broadcast, mpsc};
 
 macro_rules! recover_lock { ($lock:expr, $lbl:expr) => { match $lock { Ok(g) => g, Err(e) => { eprintln!("[daemon] WARN: RwLock '{}' poisoned!", $lbl); e.into_inner() } } }; }
+macro_rules! recover_enforcer_read { ($enf:expr) => { $enf.read().unwrap_or_else(|e| { eprintln!("[daemon] WARN: Enforcer read lock poisoned!"); e.into_inner() }) }; }
+macro_rules! recover_enforcer_write { ($enf:expr) => { $enf.write().unwrap_or_else(|e| { eprintln!("[daemon] WARN: Enforcer write lock poisoned!"); e.into_inner() }) }; }
 
 #[derive(Clone)]
 pub struct DaemonState {
@@ -37,8 +39,10 @@ struct AskState { agent_label: AgentLabel, agent_pid: u32, file_path: PathBuf, o
 
 impl DaemonState {
     pub fn new(db_path: &Path, shutdown_tx: mpsc::Sender<()>, event_tx: broadcast::Sender<IpcResponse>) -> GuardResult<Self> {
-        let store = Arc::new(Store::open(db_path)?); let aud = Arc::new(Auditor::new(store.as_ref().clone())); let tracker = Arc::new(AgentSessionTracker::new(SubjectClassifier::with_defaults())); let s = Self { store, tracker, auditor: aud, projects: Arc::new(RwLock::new(HashMap::new())), global_manifest: Arc::new(RwLock::new(None)), shutdown_tx: Arc::new(shutdown_tx), event_tx, pending_asks: Arc::new(RwLock::new(HashMap::new())), next_request_id: Arc::new(AtomicU64::new(1)), agent_manifests: Arc::new(RwLock::new(HashMap::new())), protections_active: Arc::new(AtomicBool::new(false)) };
-        s.restore_projects()?; s.restore_global_rules()?;
+        let store = Arc::new(Store::open(db_path)?); let aud = Arc::new(Auditor::new(store.as_ref().clone())); let tracker = Arc::new(AgentSessionTracker::new(SubjectClassifier::with_defaults()));
+        store.expire_all_sessions().ok();
+        let s = Self { store, tracker, auditor: aud, projects: Arc::new(RwLock::new(HashMap::new())), global_manifest: Arc::new(RwLock::new(None)), shutdown_tx: Arc::new(shutdown_tx), event_tx, pending_asks: Arc::new(RwLock::new(HashMap::new())), next_request_id: Arc::new(AtomicU64::new(1)), agent_manifests: Arc::new(RwLock::new(HashMap::new())), protections_active: Arc::new(AtomicBool::new(false)) };
+        s.restore_projects()?; s.restore_global_rules()?; restore_agent_rules(&s)?;
         Ok(s)
     }
 
@@ -56,24 +60,26 @@ impl DaemonState {
         let n = w.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_default();
         let c = CompiledManifest::compile(&mr, w.clone())?;
         let mut e = agentguard_enforce::Enforcer::new(w.clone()); e.apply_project_protections(&c)?;
+        let ask_paths = e.collect_ask_paths(&c);
         self.store.register_project(&w, &n).map_err(|err| { if let Err(e) = e.release_project_protections() { eprintln!("[daemon] WARN: ACE rollback failed: {e}"); } err })?;
         self.store.set_project_hash(&w, &h).map_err(|err| { if let Err(e) = e.release_project_protections() { eprintln!("[daemon] WARN: ACE rollback failed: {e}"); } err })?;
         let e = Arc::new(RwLock::new(e)); emit_health(self, &w, &e, &c);
         recover_lock!(self.projects.write(), "projects").insert(w.clone(), ProjectEntry { manifest: c, enforcer: e, toml_hash: h });
-        eprintln!("[daemon] Project registered: {}", w.display()); self.system_msg("success", &format!("Project registered: {}", w.display())); self.protections_active.store(true, Ordering::SeqCst); Ok(())
+        for fp in &ask_paths { self.emit_ask_prompt(AgentLabel::Definite, 0, fp, FileOp::Read); }
+        eprintln!("[daemon] Project registered: {} ({} ask prompts emitted)", w.display(), ask_paths.len()); self.system_msg("success", &format!("Project registered: {}", w.display())); self.protections_active.store(true, Ordering::SeqCst); Ok(())
     }
 
     pub fn unregister_project(&self, workspace: &Path) -> GuardResult<()> {
         let p = normalize(workspace.to_path_buf()); let entry = recover_lock!(self.projects.read(), "projects").get(&p).cloned();
-        if let Some(entry) = entry { entry.enforcer.read().unwrap().release_project_protections()?; }
+        if let Some(entry) = entry { recover_enforcer_read!(entry.enforcer).release_project_protections()?; }
         self.store.unregister_project(&p)?; recover_lock!(self.projects.write(), "projects").remove(&p); self.system_msg("info", &format!("Project unregistered: {}", p.display())); Ok(())
     }
 
-    pub fn enable_protection(&self, ws: &Path) -> GuardResult<()> { let p = normalize(ws.to_path_buf()); if let Some(e) = recover_lock!(self.projects.read(), "projects").get(&p) { e.enforcer.write().unwrap().apply_project_protections(&e.manifest)?; self.protections_active.store(true, Ordering::SeqCst); } Ok(()) }
-    pub fn disable_protection(&self, ws: &Path) -> GuardResult<()> { let p = normalize(ws.to_path_buf()); if let Some(e) = recover_lock!(self.projects.read(), "projects").get(&p) { e.enforcer.read().unwrap().release_project_protections()?; self.protections_active.store(false, Ordering::SeqCst); } Ok(()) }
+    pub fn enable_protection(&self, ws: &Path) -> GuardResult<()> { let p = normalize(ws.to_path_buf()); if let Some(e) = recover_lock!(self.projects.read(), "projects").get(&p) { recover_enforcer_write!(e.enforcer).apply_project_protections(&e.manifest)?; self.protections_active.store(true, Ordering::SeqCst); } Ok(()) }
+    pub fn disable_protection(&self, ws: &Path) -> GuardResult<()> { let p = normalize(ws.to_path_buf()); if let Some(e) = recover_lock!(self.projects.read(), "projects").get(&p) { recover_enforcer_read!(e.enforcer).release_project_protections()?; self.protections_active.store(false, Ordering::SeqCst); } Ok(()) }
 
     pub fn verify_project_protection(&self, ws: &Path) -> GuardResult<Vec<agentguard_enforce::PathProtectionHealth>> {
-        let p = normalize(ws.to_path_buf()); let entry = recover_lock!(self.projects.read(), "projects").get(&p).cloned().ok_or_else(|| agentguard_core::GuardError::IpcError("project not registered".into()))?; let result = entry.enforcer.read().unwrap().audit_project_protections(&entry.manifest); result
+        let p = normalize(ws.to_path_buf()); let entry = recover_lock!(self.projects.read(), "projects").get(&p).cloned().ok_or_else(|| agentguard_core::GuardError::IpcError("project not registered".into()))?; let result = recover_enforcer_read!(entry.enforcer).audit_project_protections(&entry.manifest); result
     }
 
     pub fn reload_project(&self, ws: &Path) -> GuardResult<()> {
@@ -83,23 +89,33 @@ impl DaemonState {
         let (nh, c) = with_toml(&old.enforcer, &tp, true, || { let tp = find_manifest(&w)?; let nh = hash_file(&tp)?; let mut mr = ProjectManifest::from_file(&tp)?; enforce_mandatory_denies(&mut mr); Ok((nh, CompiledManifest::compile(&mr, w.clone())?)) })?;
         if old.toml_hash == nh { return Ok(()); }
         let mut e = agentguard_enforce::Enforcer::new(w.clone());
-        old.enforcer.read().unwrap().release_project_protections()?;
-        e.apply_project_protections(&c).map_err(|err| { let _ = old.enforcer.write().unwrap().apply_project_protections(&old.manifest); err })?;
+        recover_enforcer_read!(old.enforcer).release_project_protections()?;
+        e.apply_project_protections(&c).map_err(|err| { let _ = recover_enforcer_write!(old.enforcer).apply_project_protections(&old.manifest); err })?;
+        let ask_paths = e.collect_ask_paths(&c);
         self.store.set_project_hash(&w, &nh)?; let e = Arc::new(RwLock::new(e));
         recover_lock!(self.projects.write(), "projects").insert(w.clone(), ProjectEntry { manifest: c, enforcer: e, toml_hash: nh });
+        for fp in &ask_paths { self.emit_ask_prompt(AgentLabel::Definite, 0, fp, FileOp::Read); }
         if let Some(entry) = recover_lock!(self.projects.read(), "projects").get(&w) { emit_health(self, &w, &entry.enforcer, &entry.manifest); }
-        eprintln!("[daemon] Hot-reload: {}", w.display()); self.system_msg("success", &format!("Policy reloaded: {}", w.display())); Ok(())
+        eprintln!("[daemon] Hot-reload: {} ({} ask prompts emitted)", w.display(), ask_paths.len()); self.system_msg("success", &format!("Policy reloaded: {}", w.display())); Ok(())
     }
 
     pub fn add_global_rule(&self, bucket: Bucket, pattern: &str) -> GuardResult<i64> { let id = self.store.insert_global_rule(bucket, pattern)?; rebuild_global(self)?; Ok(id) }
     pub fn remove_global_rule(&self, id: i64) -> GuardResult<()> { self.store.delete_global_rule(id)?; rebuild_global(self)?; Ok(()) }
 
     pub fn add_agent_rule(&self, img: &str, bucket: Bucket, pattern: &str) -> GuardResult<()> { self.store.insert_agent_rule(img, &bucket.to_string(), pattern)?; rebuild_agent(self, img)?; Ok(()) }
-    pub fn remove_agent_rule(&self, id: i64) -> GuardResult<()> { self.store.delete_agent_rule(id)?; self.agent_manifests.write().unwrap_or_else(|e| e.into_inner()).clear(); Ok(()) }
+    pub fn remove_agent_rule(&self, id: i64) -> GuardResult<()> { self.store.delete_agent_rule(id)?; restore_agent_rules(self)?; Ok(()) }
     pub fn list_agent_rules(&self, img: Option<&str>) -> GuardResult<Vec<agentguard_ipc::AgentRuleInfo>> { self.store.list_agent_rules(img).map(|r| r.into_iter().map(|x| agentguard_ipc::AgentRuleInfo { id: x.id, agent_image: x.agent_image, bucket: x.bucket.to_string(), pattern: x.pattern }).collect()).map_err(|e| e.into()) }
 
     pub fn evaluate_access_dry_run(&self, path: &Path, op: &FileOp) -> GuardResult<PolicyDecision> {
-        let p = normalize(path.to_path_buf()); let (d, _) = eval_global(self, &p, op); if d != PolicyDecision::Allow { return Ok(d); }
+        self.evaluate_access_for_agent(path, op, None)
+    }
+    pub fn evaluate_access_for_agent(&self, path: &Path, op: &FileOp, agent_image: Option<&str>) -> GuardResult<PolicyDecision> {
+        let p = normalize(path.to_path_buf());
+        if let Some(img) = agent_image {
+            let (d, _) = eval_agent(self, &p, op, img);
+            if d != PolicyDecision::Allow { return Ok(d); }
+        }
+        let (d, _) = eval_global(self, &p, op); if d != PolicyDecision::Allow { return Ok(d); }
         let projects = recover_lock!(self.projects.read(), "projects"); for (ws, entry) in projects.iter() { if p.starts_with(ws) || is_in_ws(&p, ws) { let (dd, _) = entry.manifest.evaluate(&p, op); if dd != PolicyDecision::Allow { return Ok(dd); } } }
         Ok(PolicyDecision::Allow)
     }
@@ -123,7 +139,7 @@ impl DaemonState {
         self.system_msg(if allowed {"success"} else {"warn"}, &format!("Ask #{}: {} {} {} (PID={})", rid, if allowed {"ALLOWED"} else {"DENIED"}, ask.operation.as_str(), ask.file_path.display(), ask.agent_pid)); Ok(())
     }
 
-    #[allow(dead_code)] pub fn emit_ask_prompt(&self, label: AgentLabel, pid: u32, fp: &Path, op: FileOp) -> u64 {
+    pub fn emit_ask_prompt(&self, label: AgentLabel, pid: u32, fp: &Path, op: FileOp) -> u64 {
         let id = self.next_request_id.fetch_add(1, Ordering::SeqCst);
         self.pending_asks.write().unwrap_or_else(|e| e.into_inner()).insert(id, AskState { agent_label: label, agent_pid: pid, file_path: fp.to_path_buf(), operation: op, created_at: chrono::Utc::now() });
         self.emit(IpcResponse::Event(StreamingEvent::AskPrompt { request_id: id, agent_label: label.to_string(), file_path: fp.to_string_lossy().to_string(), operation: op.to_string() })); id
@@ -138,6 +154,7 @@ impl DaemonState {
                     let prim = matches!(l, AgentLabel::Definite | AgentLabel::Probable);
                     if prim {
                         let applied = self.protect_all_projects();
+                        self.apply_agent_deny_aces(&i.image_name);
                         if applied {
                             self.system_msg("warn", &format!("BLOCKED: Agent {} (PID={}) detected - deny rules applied", i.image_name, i.pid));
                         } else {
@@ -152,6 +169,7 @@ impl DaemonState {
                 if let Some(s) = self.tracker.on_process_exit(*pid) {
                     self.persist_session_end(*pid);
                     if matches!(s.label, AgentLabel::Definite | AgentLabel::Probable) {
+                        self.release_agent_deny_aces(&s.image_name);
                         self.system_msg("info", &format!("Agent exited: {} PID={}", s.image_name, pid));
                     }
                     self.emit(IpcResponse::Event(StreamingEvent::AgentExited{pid:*pid}));
@@ -161,9 +179,58 @@ impl DaemonState {
         }
     }
 
-    fn protect_all_projects(&self) -> bool { if self.protections_active.swap(true, Ordering::SeqCst) { return true; } let mut any_ok = false; for e in recover_lock!(self.projects.read(), "projects").values() { match e.enforcer.write().unwrap().apply_project_protections(&e.manifest) { Ok(()) => any_ok = true, Err(err) => { eprintln!("[daemon] WARN: protect failed: {err}"); } } } if !any_ok { self.protections_active.store(false, Ordering::SeqCst); } any_ok }
-    pub(crate) fn release_all_projects(&self) { self.protections_active.store(false, Ordering::SeqCst); for e in recover_lock!(self.projects.read(), "projects").values() { if let Err(err) = e.enforcer.read().unwrap().release_project_protections() { eprintln!("[daemon] WARN: release failed: {err}"); } } }
-    pub(crate) fn protect_new_file(&self, fp: &Path) { if !self.protections_active.load(Ordering::SeqCst) { return; } for (ws, entry) in recover_lock!(self.projects.read(), "projects").iter() { if !(fp.starts_with(ws) || is_in_ws(fp, ws)) { continue; } match entry.manifest.bucket_for_path(fp) { Some(Bucket::Deny) | Some(Bucket::Read) => { eprintln!("[daemon] New protected file: {}", fp.display()); if let Err(err) = entry.enforcer.write().unwrap().reapply_ask(fp) { eprintln!("[daemon] WARN: protect new file: {err}"); } entry.enforcer.write().unwrap().add_to_deny_cache(fp.to_path_buf()); } Some(Bucket::Write) => { eprintln!("[daemon] New write-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_delete_deny_ace(fp); } Some(Bucket::Delete) => { eprintln!("[daemon] New delete-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_write_deny_ace(fp); } _ => {} } } }
+    fn apply_agent_deny_aces(&self, image_name: &str) {
+        let manifests = self.agent_manifests.read().unwrap_or_else(|e| e.into_inner());
+        let agent = match manifests.get(image_name) {
+            Some(a) if a.deny_count() > 0 => a,
+            _ => return,
+        };
+        eprintln!("[daemon] Agent '{}' has {} per-agent deny patterns — applying ACEs", image_name, agent.deny_count());
+        let projects = recover_lock!(self.projects.read(), "projects");
+        for (ws, _entry) in projects.iter() {
+            if let Ok(entries) = std::fs::read_dir(ws) {
+                for entry in entries.flatten() {
+                    let fp = entry.path();
+                    if fp.is_file() {
+                        if let Ok(canonical) = std::fs::canonicalize(&fp) {
+                            if agent.path_matches_deny(&canonical) {
+                                if let Err(e) = agentguard_enforce::ace::apply_deny_ace(&fp) {
+                                    eprintln!("[daemon] WARN: agent deny for {}: {e}", fp.display());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn release_agent_deny_aces(&self, image_name: &str) {
+        let manifests = self.agent_manifests.read().unwrap_or_else(|e| e.into_inner());
+        let agent = match manifests.get(image_name) {
+            Some(a) if a.deny_count() > 0 => a,
+            _ => return,
+        };
+        let projects = recover_lock!(self.projects.read(), "projects");
+        for (ws, _entry) in projects.iter() {
+            if let Ok(entries) = std::fs::read_dir(ws) {
+                for entry in entries.flatten() {
+                    let fp = entry.path();
+                    if fp.is_file() {
+                        if let Ok(canonical) = std::fs::canonicalize(&fp) {
+                            if agent.path_matches_deny(&canonical) {
+                                let _ = agentguard_enforce::ace::remove_deny_ace(&fp);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn protect_all_projects(&self) -> bool { if self.protections_active.swap(true, Ordering::SeqCst) { return true; } let mut any_ok = false; for e in recover_lock!(self.projects.read(), "projects").values() { match recover_enforcer_write!(e.enforcer).apply_project_protections(&e.manifest) { Ok(()) => any_ok = true, Err(err) => { eprintln!("[daemon] WARN: protect failed: {err}"); } } } if !any_ok { self.protections_active.store(false, Ordering::SeqCst); } any_ok }
+    pub(crate) fn release_all_projects(&self) { self.protections_active.store(false, Ordering::SeqCst); for e in recover_lock!(self.projects.read(), "projects").values() { if let Err(err) = recover_enforcer_read!(e.enforcer).release_project_protections() { eprintln!("[daemon] WARN: release failed: {err}"); } } }
+    pub(crate) fn protect_new_file(&self, fp: &Path) { if !self.protections_active.load(Ordering::SeqCst) { return; } for (ws, entry) in recover_lock!(self.projects.read(), "projects").iter() { if !(fp.starts_with(ws) || is_in_ws(fp, ws)) { continue; } match entry.manifest.bucket_for_path(fp) { Some(Bucket::Deny) | Some(Bucket::Read) => { eprintln!("[daemon] New protected file: {}", fp.display()); if let Err(err) = recover_enforcer_write!(entry.enforcer).reapply_ask(fp) { eprintln!("[daemon] WARN: protect new file: {err}"); } recover_enforcer_write!(entry.enforcer).add_to_deny_cache(fp.to_path_buf()); } Some(Bucket::Write) => { eprintln!("[daemon] New write-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_delete_deny_ace(fp); } Some(Bucket::Delete) => { eprintln!("[daemon] New delete-protected file: {}", fp.display()); let _ = agentguard_enforce::ace::apply_write_deny_ace(fp); } Some(Bucket::Ask) => { eprintln!("[daemon] New ask-protected file: {}", fp.display()); if let Err(err) = agentguard_enforce::ace::apply_deny_ace(fp) { eprintln!("[daemon] WARN: ask ACE failed: {err}"); } let _ = recover_enforcer_write!(entry.enforcer).add_to_deny_cache(fp.to_path_buf()); self.emit_ask_prompt(AgentLabel::Definite, 0, fp, FileOp::Read); } _ => {} } } }
 
     pub fn signal_shutdown(&self) { self.shutdown_tx.try_send(()).ok(); }
     pub fn list_projects(&self) -> Vec<PathBuf> { recover_lock!(self.projects.read(), "projects").keys().cloned().collect() }
@@ -246,15 +313,61 @@ fn rebuild_global(s: &DaemonState) -> GuardResult<()> {
 fn rebuild_agent(s: &DaemonState, img: &str) -> GuardResult<()> {
     let rules = s.store.list_agent_rules(Some(img))?;
     let mut m = ProjectManifest::default();
-    for r in &rules { let pat = expand(&r.pattern); if r.bucket == "deny" { m.deny.files.push(pat); } }
-    s.agent_manifests.write().unwrap_or_else(|e| e.into_inner()).insert(img.to_string(), CompiledManifest::compile(&m, PathBuf::new())?); Ok(())
+    for r in &rules {
+        let bucket = match r.bucket.as_str() {
+            "deny" => Bucket::Deny,
+            "ask" => Bucket::Ask,
+            "full" => Bucket::Full,
+            "delete" => Bucket::Delete,
+            "write" => Bucket::Write,
+            "read" => Bucket::Read,
+            _ => { eprintln!("[daemon] WARN: unknown bucket '{}' in agent rule, skipping", r.bucket); continue; }
+        };
+        let pat = expand(&r.pattern);
+        match bucket { Bucket::Deny=>m.deny.files.push(pat), Bucket::Ask=>m.ask.files.push(pat), Bucket::Full=>m.full.files.push(pat), Bucket::Delete=>m.delete.files.push(pat), Bucket::Write=>m.write.files.push(pat), Bucket::Read=>m.read.files.push(pat) }
+    }
+    let compiled = CompiledManifest::compile(&m, PathBuf::new())?;
+    eprintln!("[daemon] Agent manifest rebuilt for '{}': {} deny, {} ask, {} write, {} delete, {} read patterns",
+        img, m.deny.files.len(), m.ask.files.len(), m.write.files.len(), m.delete.files.len(), m.read.files.len());
+    s.agent_manifests.write().unwrap_or_else(|e| e.into_inner()).insert(img.to_string(), compiled);
+    Ok(())
+}
+fn restore_agent_rules(s: &DaemonState) -> GuardResult<()> {
+    let rules = s.store.list_agent_rules(None)?;
+    let mut images: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for r in &rules { images.insert(r.agent_image.clone()); }
+    let mut new_manifests: HashMap<String, CompiledManifest> = HashMap::new();
+    for img in &images {
+        let img_rules: Vec<_> = rules.iter().filter(|r| r.agent_image == *img).collect();
+        let mut m = ProjectManifest::default();
+        for r in &img_rules {
+            let bucket = match r.bucket.as_str() {
+                "deny" => Bucket::Deny, "ask" => Bucket::Ask, "full" => Bucket::Full,
+                "delete" => Bucket::Delete, "write" => Bucket::Write, "read" => Bucket::Read,
+                _ => continue,
+            };
+            let pat = expand(&r.pattern);
+            match bucket { Bucket::Deny=>m.deny.files.push(pat), Bucket::Ask=>m.ask.files.push(pat), Bucket::Full=>m.full.files.push(pat), Bucket::Delete=>m.delete.files.push(pat), Bucket::Write=>m.write.files.push(pat), Bucket::Read=>m.read.files.push(pat) }
+        }
+        new_manifests.insert(img.clone(), CompiledManifest::compile(&m, PathBuf::new())?);
+    }
+    *s.agent_manifests.write().unwrap_or_else(|e| e.into_inner()) = new_manifests;
+    eprintln!("[daemon] Restored {} agent manifests from DB", images.len());
+    Ok(())
 }
 fn eval_global(s: &DaemonState, p: &Path, op: &FileOp) -> (PolicyDecision, PolicySource) {
     if let Some(ref c) = *s.global_manifest.read().unwrap_or_else(|e| e.into_inner()) { let (d,_)=c.evaluate(p, op); return (d,PolicySource::Global); }
     (PolicyDecision::Allow, PolicySource::Default)
 }
+fn eval_agent(s: &DaemonState, p: &Path, op: &FileOp, agent_image: &str) -> (PolicyDecision, PolicySource) {
+    if let Some(manifest) = s.agent_manifests.read().unwrap_or_else(|e| e.into_inner()).get(agent_image) {
+        let (d, _) = manifest.evaluate(p, op);
+        if d != PolicyDecision::Allow { return (d, PolicySource::Agent); }
+    }
+    (PolicyDecision::Allow, PolicySource::Default)
+}
 fn emit_health(s: &DaemonState, ws: &Path, enforcer: &Arc<RwLock<agentguard_enforce::Enforcer>>, manifest: &CompiledManifest) {
-    if let Ok(a) = enforcer.read().unwrap().audit_project_protections(manifest) {
+    if let Ok(a) = recover_enforcer_read!(enforcer).audit_project_protections(manifest) {
         let t=a.len(); let h=a.iter().filter(|x|x.health.healthy()).count(); let e=a.iter().filter(|x|x.health.content_deny&&x.health.metadata_deny).count();
         let w: Vec<_> = if t == 0 { vec!["0 deny paths found in workspace — Phylax is not actively blocking any files".into()] } else if e<t { vec![format!("{}/{} deny paths effective", e, t)] } else { vec![] };
         s.emit(IpcResponse::ProtectionReport(agentguard_ipc::ProtectionReportData { schema_version:1, workspace:ws.to_path_buf(), total_deny_paths:t, healthy_paths:h, effective_deny_paths:e,
@@ -272,9 +385,9 @@ fn is_in_ws(p: &Path, ws: &Path) -> bool { std::fs::canonicalize(p).map(|c| stri
 fn expand(pat: &str) -> String { if pat.contains('\\')||pat.contains('/')||pat.contains("**") { pat.to_string() } else { format!("**/{pat}") } }
 fn with_toml<T>(enf: &Arc<RwLock<agentguard_enforce::Enforcer>>, tp: &Path, assume: bool, read: impl FnOnce()->GuardResult<T>) -> GuardResult<T> {
     let had = match agentguard_enforce::ace::verify_ace(tp) { Ok(h) => h.content_deny||h.metadata_deny, Err(_) => assume };
-    if had { enf.write().unwrap().temporarily_allow(tp)?; }
+    if had { recover_enforcer_write!(enf).temporarily_allow(tp)?; }
     let r = read();
-    if had { if let Err(e)=enf.write().unwrap().reapply_ask(tp) { if r.is_ok() { return Err(e); } } }
+    if had { if let Err(e)=recover_enforcer_write!(enf).reapply_ask(tp) { if r.is_ok() { return Err(e); } } }
     r
 }
 
@@ -295,7 +408,14 @@ mod tests {
     #[test] fn agent_rule() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("c.exe",Bucket::Deny,"*.env").unwrap(); assert_eq!(s.list_agent_rules(Some("c.exe")).unwrap().len(),1); }
     #[test] fn agent_rule_isolated() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("c.exe",Bucket::Deny,"*.env").unwrap(); assert!(s.list_agent_rules(Some("claude.exe")).unwrap().is_empty()); }
     #[test] fn remove_agent_rule() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("c.exe",Bucket::Deny,"*.env").unwrap(); let id=s.list_agent_rules(Some("c.exe")).unwrap()[0].id; s.remove_agent_rule(id).unwrap(); assert!(s.list_agent_rules(Some("c.exe")).unwrap().is_empty()); }
-    #[test] fn agent_eval() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.tracker.on_process_start(&agentguard_probe::ProcessInfo{pid:100,image_name:"cursor.exe".into(),session_id:0,cmdline:"".into(),env_vars:vec![],has_window:false,parent_pid:None},None); }
+    #[test] fn agent_eval() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Read,Some("cursor.exe")).unwrap(), PolicyDecision::Deny); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Read,Some("claude.exe")).unwrap(), PolicyDecision::Allow); assert_eq!(s.evaluate_access_dry_run(&PathBuf::from("/x/.env"),&FileOp::Read).unwrap(), PolicyDecision::Allow); }
+    #[test] fn agent_deny_beats_global_write() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_global_rule(Bucket::Write,"*.env").unwrap(); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Write,Some("cursor.exe")).unwrap(), PolicyDecision::Deny); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Write,None).unwrap(), PolicyDecision::Allow); }
+    #[test] fn agent_rule_all_buckets() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("cursor.exe",Bucket::Ask,"*.ask_file").unwrap(); s.add_agent_rule("cursor.exe",Bucket::Write,"*.write_file").unwrap(); s.add_agent_rule("cursor.exe",Bucket::Delete,"*.delete_file").unwrap(); s.add_agent_rule("cursor.exe",Bucket::Read,"*.read_file").unwrap(); let rules=s.list_agent_rules(Some("cursor.exe")).unwrap(); assert_eq!(rules.len(),4); let buckets:Vec<_>=rules.iter().map(|r|r.bucket.clone()).collect(); assert!(buckets.contains(&"ask".to_string())); assert!(buckets.contains(&"write".to_string())); assert!(buckets.contains(&"delete".to_string())); assert!(buckets.contains(&"read".to_string())); }
+    #[test] fn agent_rule_persistence_across_remove() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); s.add_agent_rule("claude.exe",Bucket::Deny,"*.key").unwrap(); assert_eq!(s.list_agent_rules(Some("cursor.exe")).unwrap().len(),1); assert_eq!(s.list_agent_rules(Some("claude.exe")).unwrap().len(),1); let cursor_id=s.list_agent_rules(Some("cursor.exe")).unwrap()[0].id; s.remove_agent_rule(cursor_id).unwrap(); assert!(s.list_agent_rules(Some("cursor.exe")).unwrap().is_empty()); assert_eq!(s.list_agent_rules(Some("claude.exe")).unwrap().len(),1,"claude.exe rules must survive cursor.exe removal"); }
+    #[test] fn agent_decision_source_is_agent() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); let d=s.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Read,Some("cursor.exe")).unwrap(); assert_eq!(d,PolicyDecision::Deny); let agents=s.agent_manifests.read().unwrap(); assert!(agents.contains_key("cursor.exe")); assert!(agents["cursor.exe"].deny_count()>0); }
+    #[test] fn agent_priority_over_global() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_global_rule(Bucket::Full,"*.shared").unwrap(); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.shared").unwrap(); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/a.shared"),&FileOp::Read,Some("cursor.exe")).unwrap(), PolicyDecision::Deny); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/a.shared"),&FileOp::Read,None).unwrap(), PolicyDecision::Allow); }
+    #[test] fn agent_unknown_image_falls_through() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_global_rule(Bucket::Deny,"*.secret").unwrap(); assert_eq!(s.evaluate_access_for_agent(&PathBuf::from("/x/t.secret"),&FileOp::Read,Some("unknown.exe")).unwrap(), PolicyDecision::Deny); }
+    #[test] fn agent_startup_restore() { let t=TempDir::new().unwrap(); let (s,_)=setup(&t); s.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); let (stx,_)=mpsc::channel(1); let (etx,_)=broadcast::channel(1024); let s2=DaemonState::new(&t.path().join("t2.db"),stx,etx).unwrap(); s2.add_agent_rule("cursor.exe",Bucket::Deny,"*.env").unwrap(); assert_eq!(s2.list_agent_rules(Some("cursor.exe")).unwrap().len(),1); assert_eq!(s2.evaluate_access_for_agent(&PathBuf::from("/x/.env"),&FileOp::Read,Some("cursor.exe")).unwrap(), PolicyDecision::Deny); }
     #[test] fn ask_lifecycle() { let t=TempDir::new().unwrap(); let (s,mut rx)=setup(&t); let id=s.emit_ask_prompt(AgentLabel::Definite,200,Path::new("/tmp/x.env"),FileOp::Read); assert!(id>0); rx.try_recv().unwrap(); s.process_ask_response(id,true,false).unwrap(); assert!(s.process_ask_response(id,false,false).is_err()); }
     #[test] fn ask_remember() { let t=TempDir::new().unwrap(); let (s,mut rx)=setup(&t); let id=s.emit_ask_prompt(AgentLabel::Definite,300,Path::new("/tmp/x.pem"),FileOp::Write); rx.try_recv().unwrap(); s.process_ask_response(id,false,true).unwrap(); }
     #[test] fn ask_double() { let t=TempDir::new().unwrap(); let (s,mut rx)=setup(&t); let id=s.emit_ask_prompt(AgentLabel::Definite,400,Path::new("/tmp/x.yaml"),FileOp::Delete); rx.try_recv().unwrap(); s.process_ask_response(id,true,false).unwrap(); assert!(s.process_ask_response(id,false,false).is_err()); }

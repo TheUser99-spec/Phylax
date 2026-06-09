@@ -125,8 +125,9 @@ impl IpcClient {
         &self,
         path: PathBuf,
         op: String,
+        agent_image: Option<String>,
     ) -> GuardResult<crate::protocol::FileCheckResult> {
-        match self.send(IpcRequest::CheckFileAccess { path, op }).await? {
+        match self.send(IpcRequest::CheckFileAccess { path, op, agent_image }).await? {
             IpcResponse::FileCheck(r) => Ok(r),
             IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
             other => Err(GuardError::IpcError(format!(
@@ -170,6 +171,42 @@ impl IpcClient {
             other => Err(GuardError::IpcError(format!(
                 "unexpected response: {other:?}"
             ))),
+        }
+    }
+
+    pub async fn get_compliance_status(
+        &self,
+        standard: String,
+    ) -> GuardResult<crate::protocol::ComplianceStatusData> {
+        match self.send(IpcRequest::GetComplianceStatus { standard }).await? {
+            IpcResponse::ComplianceStatus(r) => Ok(r),
+            IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
+            other => Err(GuardError::IpcError(format!("unexpected: {other:?}"))),
+        }
+    }
+
+    pub async fn get_compliance_report(
+        &self,
+        standard: String,
+        format: String,
+    ) -> GuardResult<crate::protocol::ComplianceReportData> {
+        match self.send(IpcRequest::GetComplianceReport { standard, format }).await? {
+            IpcResponse::ComplianceReport(r) => Ok(r),
+            IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
+            other => Err(GuardError::IpcError(format!("unexpected: {other:?}"))),
+        }
+    }
+
+    pub async fn get_audit_events(
+        &self,
+        cursor: Option<String>,
+        limit: u64,
+        filter: Option<String>,
+    ) -> GuardResult<crate::protocol::AuditEventsData> {
+        match self.send(IpcRequest::GetAuditEvents { cursor, limit, filter }).await? {
+            IpcResponse::AuditEvents(r) => Ok(r),
+            IpcResponse::Error { message } => Err(GuardError::IpcError(message)),
+            other => Err(GuardError::IpcError(format!("unexpected: {other:?}"))),
         }
     }
 

@@ -35,6 +35,8 @@ pub enum IpcRequest {
     CheckFileAccess {
         path: PathBuf,
         op: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        agent_image: Option<String>,
     },
     GetStatus,
     Shutdown,
@@ -79,6 +81,34 @@ pub enum IpcRequest {
     VerifyProtection {
         path: PathBuf,
     },
+    GetComplianceStatus {
+        standard: String,
+    },
+    GetComplianceReport {
+        standard: String,
+        format: String,
+    },
+    ExportAuditLog {
+        format: String,
+        filter: Option<String>,
+        limit: Option<usize>,
+    },
+    GetAuditEvents {
+        cursor: Option<String>,
+        limit: u64,
+        filter: Option<String>,
+    },
+    VerifyAuditIntegrity,
+    DiscoverMcpServers,
+    GetMcpRules,
+    AddMcpRule {
+        server_name: String,
+        action: String,
+    },
+    RemoveMcpRule {
+        id: i64,
+    },
+    CheckDexStatus,
 }
 
 // ---------------------------------------------------------------------------
@@ -99,11 +129,46 @@ pub enum IpcResponse {
     Policy(PolicyData),
     AgentRulesList(AgentRulesListData),
     ProtectionReport(ProtectionReportData),
+    ComplianceStatus(ComplianceStatusData),
+    ComplianceReport(ComplianceReportData),
+    AuditEvents(AuditEventsData),
+    AuditIntegrity(IntegrityReportData),
+    McpDiscovery(McpDiscoveryData),
+    McpRulesList(McpRulesListData),
+    DexStatus(DexStatusData),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GlobalRulesListData {
-    pub rules: Vec<GlobalRuleInfo>,
+pub struct DexStatusData {
+    pub total_connections: usize,
+    pub suspicious_connections: usize,
+    pub active_agents_online: usize,
+    pub usb_devices: usize,
+    pub risk_level: String,
+    pub report_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpDiscoveryData {
+    pub servers_found: usize,
+    pub config_files_scanned: usize,
+    pub config_files_found: usize,
+    pub servers_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpRulesListData {
+    pub rules_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrityReportData {
+    pub total_events: u64,
+    pub verified_events: u64,
+    pub tampered_events: u64,
+    pub chain_intact: bool,
+    pub first_hash: String,
+    pub last_hash: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +247,11 @@ pub struct GlobalRuleInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalRulesListData {
+    pub rules: Vec<GlobalRuleInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileCheckResult {
     pub path: PathBuf,
     pub op: String,
@@ -255,6 +325,42 @@ pub struct ProtectionReportData {
     pub unhealthy_paths: Vec<ProtectionPathHealth>,
     #[serde(default)]
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComplianceStatusData {
+    pub standard: String,
+    pub overall_status: String,
+    pub articles_count: usize,
+    pub controls_implemented: usize,
+    pub controls_partial: usize,
+    pub controls_missing: usize,
+    pub gaps: Vec<ComplianceGapData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComplianceGapData {
+    pub article: String,
+    pub control_id: String,
+    pub description: String,
+    pub remediation: String,
+    pub severity: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComplianceReportData {
+    pub standard: String,
+    pub generated_at: String,
+    pub overall_status: String,
+    pub report_json: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditEventsData {
+    pub events: String,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+    pub event_count: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +556,7 @@ mod tests {
             IpcRequest::CheckFileAccess {
                 path: PathBuf::from("/d"),
                 op: "write".into(),
+                agent_image: Some("cursor.exe".into()),
             },
             IpcRequest::GetStatus,
             IpcRequest::Shutdown,
@@ -489,6 +596,23 @@ mod tests {
             },
             IpcRequest::VerifyProtection {
                 path: PathBuf::from("/test"),
+            },
+            IpcRequest::GetComplianceStatus {
+                standard: "eu-ai-act".into(),
+            },
+            IpcRequest::GetComplianceReport {
+                standard: "eu-ai-act".into(),
+                format: "json".into(),
+            },
+            IpcRequest::ExportAuditLog {
+                format: "ocsf".into(),
+                filter: None,
+                limit: None,
+            },
+            IpcRequest::GetAuditEvents {
+                cursor: None,
+                limit: 50,
+                filter: None,
             },
         ];
 

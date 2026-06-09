@@ -1,0 +1,17 @@
+[package]
+name = "agentguard-web"
+version = "0.1.0"
+edition = "2021"
+description = "Local web dashboard for Phylax — real-time agent monitoring, audit, compliance"
+
+[dependencies]
+agentguard-core = { path = "../agentguard-core" }
+agentguard-store = { path = "../agentguard-store" }
+agentguard-compliance = { path = "../agentguard-compliance" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+futures-util = "0.3"

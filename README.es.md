@@ -20,6 +20,9 @@
 - Bloquea lecturas a `.env`, claves, secretos mediante DENY ACEs
 - Bloquea eliminaciones de `migrations/`, config, infra mediante etiquetas MIC
 - Compatible con Claude Code, Cursor, Windsurf, Aider, OpenCode, Copilot
+- Dashboard web en `http://127.0.0.1:1977` + TUI de terminal (ratatui, 60fps)
+- Reportes de compliance: EU AI Act, NIST, ISO 42001, SOC 2
+- Gobernanza de servidores MCP + detección de exfiltración de datos (DEX)
 - Fase 1: refuerzo mediante ACLs en modo usuario. Fase 2: driver kernel minifilter (en desarrollo)
 - Open source (Apache 2.0). 100% local. Buscando revisión técnica.
 
@@ -170,15 +173,24 @@ files = ["README.md", "docs/**"]
 
 | Comando | Qué hace |
 |---|---|
+| `phylax start` | Inicia daemon + abre dashboard web |
 | `phylax init` | Crea phylax.toml, inicia el daemon, registra el proyecto |
-| `phylax run` | Inicia daemon + dashboard en vivo (60fps) |
+| `phylax run` | Inicia daemon + TUI de terminal (60fps) |
 | `phylax stop` | Detiene el daemon (libera los bloqueos de archivos) |
 | `phylax status` | Estado en vivo: proyectos, agentes, eventos, bloqueos |
 | `phylax project validate` | Valida la sintaxis de phylax.toml |
 | `phylax project check -f <f> -o <op>` | Simulación de acceso a archivo |
+| `phylax project check -f <f> -o <op> -a <agent>` | Simulación por agente específico |
 | `phylax project verify` | Auditoría de cobertura de protección |
 | `phylax global add deny "*.env"` | Agrega una regla global de denegación |
+| `phylax agent add opencode deny "*.pem"` | Agrega regla por agente |
+| `phylax compliance status` | EU AI Act / NIST / ISO 42001 / SOC 2 |
+| `phylax mcp discover` | Descubre servidores MCP en el sistema |
+| `phylax dex` | Verifica riesgo de exfiltración de datos |
+| `phylax scan` | Escanea archivos de modelos IA maliciosos |
 | `phylax audit list` | Ver historial de auditoría |
+| `phylax audit export` | Exportar logs (csv, json, ocsf, cef) |
+| `phylax audit verify-integrity` | Verificar integridad del hash-chain |
 | `phylax update` | Auto-actualización desde GitHub |
 
 ---
@@ -200,10 +212,16 @@ cargo build --workspace --release
 - [x] Refuerzo mediante ACLs/ACEs de Windows
 - [x] Triple capa anti-bypass (DENY ACEs + etiquetas MIC)
 - [x] Registro de auditoría en SQLite
-- [x] Protocolo IPC (20 tipos de solicitud)
-- [x] Dashboard de terminal (ratatui, 60fps)
-- [x] CLI unificada
+- [x] Protocolo IPC (30+ tipos de solicitud)
+- [x] Dashboard de terminal (ratatui, 60fps) + Dashboard web
+- [x] CLI unificada con comandos compliance, MCP, DEX, scanner
 - [x] Daemon invisible
+- [x] Reportes EU AI Act / NIST / ISO 42001 / SOC 2
+- [x] Descubrimiento y gobernanza de servidores MCP
+- [x] Detección de exfiltración de datos (DEX)
+- [x] Escáner de archivos de modelos IA (pickle, safetensors, gguf)
+- [x] Verificación de integridad del hash-chain de auditoría
+- [x] Landing page + FAQ + tutorial + docs bilingües
 - [ ] Driver kernel minifilter (Fase 2)
 - [ ] Bloqueo solo para agentes (sin necesidad de detener el daemon)
 - [ ] Multiplataforma (macOS/Linux)

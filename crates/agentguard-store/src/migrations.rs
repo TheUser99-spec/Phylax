@@ -2,7 +2,7 @@ use agentguard_core::GuardError;
 use rusqlite::Connection;
 use tracing::info;
 
-const MIGRATIONS: &[(u32, &str)] = &[(1, MIGRATION_001), (2, MIGRATION_002), (3, MIGRATION_003)];
+const MIGRATIONS: &[(u32, &str)] = &[(1, MIGRATION_001), (2, MIGRATION_002), (3, MIGRATION_003), (4, MIGRATION_004)];
 
 const MIGRATION_001: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -87,6 +87,16 @@ CREATE TABLE IF NOT EXISTS agent_rules (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_rules_image ON agent_rules (agent_image);
+"#;
+
+const MIGRATION_004: &str = r#"
+ALTER TABLE audit_events ADD COLUMN seq_no INTEGER;
+ALTER TABLE audit_events ADD COLUMN prev_hash TEXT;
+ALTER TABLE audit_events ADD COLUMN event_hash TEXT;
+ALTER TABLE audit_events ADD COLUMN sync_state TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE audit_events ADD COLUMN erased INTEGER NOT NULL DEFAULT 0;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_audit_events_seq ON audit_events (seq_no);
+UPDATE audit_events SET seq_no = id WHERE seq_no IS NULL;
 "#;
 
 /// Apply all pending migrations in order.

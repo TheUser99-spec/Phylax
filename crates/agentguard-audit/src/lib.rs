@@ -3,6 +3,8 @@
 //! Each enforcement decision (allow, deny, ask) produces an AuditEvent.
 //! Fail-closed: if the DB is unavailable, deny is applied by default.
 
+pub mod formats;
+
 use agentguard_core::{AgentLabel, AuditEvent, FileOp, GuardResult, PolicyDecision, PolicySource};
 use agentguard_store::Store;
 use chrono::Utc;

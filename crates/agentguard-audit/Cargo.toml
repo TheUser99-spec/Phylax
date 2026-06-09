@@ -8,6 +8,7 @@ agentguard-core.workspace = true
 agentguard-store.workspace = true
 chrono.workspace = true
 log.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

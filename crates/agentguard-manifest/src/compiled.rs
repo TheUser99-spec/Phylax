@@ -149,6 +149,13 @@ impl CompiledManifest {
             self.read_count,
         )
     }
+
+    pub fn deny_count(&self) -> usize { self.deny_count }
+
+    pub fn path_matches_deny(&self, abs_path: &Path) -> bool {
+        let rel = abs_path.strip_prefix(&self.workspace_root).unwrap_or(abs_path);
+        self.deny.is_match(rel)
+    }
 }
 
 fn build_globset(patterns: &[String], _bucket_name: &str) -> GuardResult<GlobSet> {

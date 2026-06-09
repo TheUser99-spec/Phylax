@@ -550,7 +550,7 @@ mod process_info {
 }
 
 #[cfg(windows)]
-fn build_info(pid: u32, image_name: &str, parent_pid: u32) -> Option<ProcessInfo> {
+pub(crate) fn build_info(pid: u32, image_name: &str, parent_pid: u32) -> Option<ProcessInfo> {
     let session_id = process_info::get_session_id(pid);
     let cmdline = process_info::read_cmdline(pid).unwrap_or_default();
     let env_vars = process_info::read_env_keys(pid);

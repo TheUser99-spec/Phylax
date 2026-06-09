@@ -1,0 +1,11 @@
+[package]
+name = "agentguard-compliance"
+version = "0.1.0"
+edition = "2021"
+description = "EU AI Act + NIST + SOC 2 compliance evidence engine for Phylax"
+
+[dependencies]
+agentguard-core = { path = "../agentguard-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phylax — Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--card:#111118;--border:#1e1e2e;--accent:#06b6d4;--accent2:#8b5cf6;--danger:#ef4444;--warn:#f59e0b;--ok:#22c55e;--text:#e2e8f0;--muted:#64748b}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.gradient-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(6,182,212,0.08),transparent),
+radial-gradient(ellipse 50% 80% at 80% 80%,rgba(139,92,246,0.06),transparent),
+radial-gradient(ellipse 40% 60% at 20% 50%,rgba(6,182,212,0.04),transparent)}
+header{position:sticky;top:0;z-index:100;backdrop-filter:blur(20px);background:rgba(10,10,15,0.85);border-bottom:1px solid var(--border)}
+.header-inner{max-width:1400px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px}
+.header-status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,0.4)}50%{opacity:0.7;box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+.tabs{display:flex;gap:2px;padding:0 24px;max-width:1400px;margin:0 auto}
+.tab-btn{padding:10px 20px;font-size:13px;font-weight:500;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;font-family:inherit}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+main{max-width:1400px;margin:0 auto;padding:24px;position:relative;z-index:1}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.3}
+.stat-label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+.stat-value{font-size:36px;font-weight:800;letter-spacing:-1px}
+.stat-value.danger{color:var(--danger)}
+.stat-value.warn{color:var(--warn)}
+.stat-value.ok{color:var(--ok)}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:15px;font-weight:600}
+.card-body{padding:16px 20px;max-height:400px;overflow-y:auto}
+.agent-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.agent-row:last-child{border-bottom:none}
+.agent-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.agent-icon.definite{background:rgba(239,68,68,0.15);color:var(--danger)}
+.agent-icon.probable{background:rgba(245,158,11,0.15);color:var(--warn)}
+.agent-info{flex:1}
+.agent-name{font-size:14px;font-weight:600}
+.agent-pid{font-size:11px;color:var(--muted)}
+.agent-badge{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.agent-badge.definite{background:rgba(239,68,68,0.2);color:var(--danger)}
+.agent-badge.probable{background:rgba(245,158,11,0.2);color:var(--warn)}
+.event-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:13px}
+.event-row:last-child{border-bottom:none}
+.event-time{font-size:11px;color:var(--muted);min-width:50px;font-family:'JetBrains Mono',monospace}
+.event-decision{min-width:50px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+.event-decision.deny{color:var(--danger)}
+.event-decision.allow{color:var(--ok)}
+.event-decision.ask{color:var(--warn)}
+.event-label{color:var(--muted);min-width:70px;font-size:11px}
+.event-path{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text)}
+.compliance-card{padding:12px 16px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.comp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.comp-name{font-weight:600;font-size:14px}
+.comp-status{font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600}
+.comp-status.imp{background:rgba(34,197,94,0.15);color:var(--ok)}
+.comp-status.part{background:rgba(245,158,11,0.15);color:var(--warn)}
+.comp-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:6px}
+.comp-bar-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.comp-bar-fill.good{background:var(--ok)}
+.comp-bar-fill.warn{background:var(--warn)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.fade-in{animation:fadeIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.connection-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px}
+.connection-dot.connected{background:var(--ok)}
+.connection-dot.disconnected{background:var(--danger)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="gradient-bg"></div>
+
+<header>
+<div class="header-inner">
+<div class="logo">
+<div class="logo-icon">P</div>
+<span>Phylax</span>
+</div>
+<div class="header-status">
+<span id="conn-dot" class="connection-dot disconnected"></span>
+<span id="conn-text">Connecting...</span>
+<span style="margin-left:16px;color:var(--muted)" id="clock"></span>
+</div>
+</div>
+<div class="tabs">
+<button class="tab-btn active" onclick="switchTab('home')">Overview</button>
+<button class="tab-btn" onclick="switchTab('agents')">Agents</button>
+<button class="tab-btn" onclick="switchTab('events')">Events</button>
+<button class="tab-btn" onclick="switchTab('compliance')">Compliance</button>
+</div>
+</header>
+
+<main>
+<div id="tab-home" class="tab-content active fade-in">
+<div class="stats-grid">
+<div class="stat-card"><div class="stat-label">Events Today</div><div class="stat-value ok" id="stat-events">0</div><div class="stat-sub">total decisions</div></div>
+<div class="stat-card"><div class="stat-label">Blocks Today</div><div class="stat-value danger" id="stat-blocks">0</div><div class="stat-sub">deny decisions</div></div>
+<div class="stat-card"><div class="stat-label">Active Agents</div><div class="stat-value warn" id="stat-agents">0</div><div class="stat-sub">detected processes</div></div>
+<div class="stat-card"><div class="stat-label">Chain Integrity</div><div class="stat-value ok" id="stat-chain">—</div><div class="stat-sub">audit hash chain</div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-header"><span class="card-title">Active Agents</span><span style="font-size:12px;color:var(--muted)" id="agent-count">0</span></div><div class="card-body" id="agent-list"><div class="empty-state"><div class="empty-icon">No agents detected</div><div style="color:var(--muted)">Agent activity will appear here in real-time</div></div></div></div>
+<div class="card"><div class="card-header"><span class="card-title">Recent Events</span></div><div class="card-body" id="event-feed"><div class="empty-state"><div class="empty-icon">Waiting for events</div><div style="color:var(--muted)">Audit events stream in real-time</div></div></div></div>
+</div>
+</div>
+
+<div id="tab-agents" class="tab-content"><div class="card"><div class="card-header"><span class="card-title">All Active Agents</span></div><div class="card-body" id="agent-list-full"><div class="empty-state"><div class="empty-icon">No agents detected</div></div></div></div></div>
+
+<div id="tab-events" class="tab-content"><div class="card"><div class="card-header"><span class="card-title">Full Event Log</span><span style="font-size:12px;color:var(--muted)">Last 50 events</span></div><div class="card-body" id="event-list-full" style="max-height:600px"><div class="empty-state"><div class="empty-icon">Loading...</div></div></div></div></div>
+
+<div id="tab-compliance" class="tab-content"><div class="card"><div class="card-header"><span class="card-title">EU AI Act — Compliance Status</span></div><div class="card-body" id="compliance-body" style="max-height:600px"><div class="empty-state"><div class="empty-icon">Loading...</div></div></div></div></div>
+</main>
+
+<script>
+let ws = null;
+let currentTab = 'home';
+let lastData = null;
+
+function switchTab(tab) {
+currentTab = tab;
+document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+const el = document.getElementById('tab-' + tab);
+if (el) { el.classList.add('active'); el.classList.add('fade-in'); }
+if (tab === 'events') fetchEvents();
+if (tab === 'compliance') fetchCompliance();
+}
+
+function connectWS() {
+const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+ws = new WebSocket(`${proto}//${location.host}/ws`);
+ws.onopen = () => {
+document.getElementById('conn-dot').className = 'connection-dot connected';
+document.getElementById('conn-text').textContent = 'Live';
+};
+ws.onmessage = (e) => {
+try { lastData = JSON.parse(e.data); updateUI(lastData); } catch(_) {}
+};
+ws.onclose = () => {
+document.getElementById('conn-dot').className = 'connection-dot disconnected';
+document.getElementById('conn-text').textContent = 'Disconnected';
+setTimeout(connectWS, 3000);
+};
+ws.onerror = () => {};
+}
+
+function updateUI(d) {
+document.getElementById('stat-events').textContent = d.events_today;
+document.getElementById('stat-blocks').textContent = d.blocks_today;
+document.getElementById('stat-agents').textContent = d.active_agents;
+document.getElementById('agent-count').textContent = d.active_agents;
+
+const agents = d.agents || [];
+const agentHtml = agents.length ? agents.map(a => {
+const cls = a.label === 'DEFINITE' ? 'definite' : 'probable';
+const initial = (a.image || 'A')[0].toUpperCase();
+return `<div class="agent-row">
+<div class="agent-icon ${cls}">${initial}</div>
+<div class="agent-info"><div class="agent-name">${a.image || 'unknown'}</div><div class="agent-pid">PID ${a.pid} · ${timeAgo(a.started)}</div></div>
+<span class="agent-badge ${cls}">${a.label}</span></div>`;
+}).join('') : '<div class="empty-state"><div class="empty-icon">No agents detected</div></div>';
+document.getElementById('agent-list').innerHTML = agentHtml;
+document.getElementById('agent-list-full').innerHTML = agentHtml;
+
+const events = d.recent_events || [];
+const eventHtml = events.length ? events.map(ev => {
+const t = new Date(ev.ts * 1000);
+return `<div class="event-row">
+<span class="event-time">${t.toLocaleTimeString()}</span>
+<span class="event-decision ${ev.decision}">${ev.decision}</span>
+<span class="event-label">${ev.label}</span>
+<span class="event-path">${ev.path}</span></div>`;
+}).join('') : '<div class="empty-state"><div class="empty-icon">Waiting for events</div></div>';
+document.getElementById('event-feed').innerHTML = eventHtml;
+}
+
+function timeAgo(ts) {
+const diff = Date.now()/1000 - ts;
+if (diff < 60) return 'just now';
+if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+return Math.floor(diff/3600) + 'h ago';
+}
+
+async function fetchEvents() {
+try {
+const resp = await fetch('/api/events?limit=50');
+const events = await resp.json();
+const html = events.length ? events.map(ev => {
+const t = new Date(ev.ts * 1000);
+return `<div class="event-row">
+<span class="event-time">${t.toLocaleString()}</span>
+<span class="event-decision ${ev.decision}">${ev.decision}</span>
+<span class="event-label">${ev.label}</span>
+<span class="event-path">${ev.path}</span></div>`;
+}).join('') : '<div class="empty-state"><div class="empty-icon">No events recorded</div></div>';
+document.getElementById('event-list-full').innerHTML = html;
+} catch(_) { document.getElementById('event-list-full').innerHTML = '<div class="empty-state">Failed to load</div>'; }
+}
+
+async function fetchCompliance() {
+try {
+const resp = await fetch('/api/compliance');
+const r = await resp.json();
+const articles = r.articles || [];
+let html = '';
+for (const a of articles) {
+const pct = a.controls_total > 0 ? Math.round(a.controls_implemented / a.controls_total * 100) : 0;
+const statusCls = a.controls_missing === 0 && a.controls_partial === 0 ? 'imp' : 'part';
+const barCls = pct >= 80 ? 'good' : 'warn';
+const icon = a.controls_missing > 0 ? '❌' : a.controls_partial > 0 ? '⚠️' : '✅';
+html += `<div class="compliance-card">
+<div class="comp-header">
+<span class="comp-name">${icon} ${a.article} — ${a.title}</span>
+<span class="comp-status ${statusCls}">${a.controls_implemented}/${a.controls_total} controls</span>
+</div>
+<div class="comp-bar"><div class="comp-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+</div>`;
+}
+const overall = r.overall_status === 'implemented' ? '✅ COMPLIANT' : '⚠️ PARTIAL';
+document.getElementById('compliance-body').innerHTML =
+'<div style="margin-bottom:16px;font-size:18px;font-weight:700">Overall: ' + overall + '</div>' + html;
+} catch(_) { document.getElementById('compliance-body').innerHTML = '<div class="empty-state">Failed to load</div>'; }
+}
+
+function updateClock() {
+document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+fetch('/api/status').then(r => r.json()).then(d => updateUI(d)).catch(()=>{});
+connectWS();
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>
